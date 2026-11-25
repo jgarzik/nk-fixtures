@@ -71,7 +71,27 @@ def parse(data):
             imports.setdefault(_cstr(data, off(name_rva)), []).extend(names)
             desc += 20
 
-    return {
+    exports = None
+    if dirs and dirs[0][0]:
+        (_, _, _, _, name_rva, base, nfuncs, nnames,
+         funcs_rva, names_rva, ords_rva) = struct.unpack_from("<IIHHIIIIIII", data, off(dirs[0][0]))
+        rvas = struct.unpack_from(f"<{nfuncs}I", data, off(funcs_rva)) if nfuncs else ()
+        by_name = {}
+        for i in range(nnames):
+            index = struct.unpack_from("<H", data, off(ords_rva) + 2 * i)[0]
+            name = _cstr(data, off(struct.unpack_from("<I", data, off(names_rva) + 4 * i)[0]))
+            by_name[name] = base + index
+        named = set(by_name.values())
+        exports = {
+            "name": _cstr(data, off(name_rva)),
+            "ordinal_base": base,
+            "by_name": dict(sorted(by_name.items())),
+            # Exported, but with no name: importable by ordinal alone.
+            "by_ordinal_only": [base + i for i, rva in enumerate(rvas)
+                                if rva and base + i not in named],
+        }
+
+    info = {
         "machine": MACHINES.get(machine, f"{machine:#06x}"),
         "timestamp": timestamp,
         "image_base": f"{image_base:#x}",
@@ -85,3 +105,13 @@ def parse(data):
         "signed": len(dirs) > 4 and dirs[4][1] > 0,
         "imports": {dll: sorted(names) for dll, names in sorted(imports.items())},
     }
+    if exports is not None:
+        info["exports"] = exports
+    return info
+
+
+def export_list(info):
+    """What an image exports, as sorted names plus "#<ordinal>" for each
+    export that has no name: the spelling the import lists use."""
+    exports = info.get("exports") or {"by_name": {}, "by_ordinal_only": []}
+    return sorted(list(exports["by_name"]) + [f"#{n}" for n in exports["by_ordinal_only"]])

@@ -9,6 +9,13 @@
   "archs": ["x64", "arm64"],
   "nt_target": "19041",
   "nt_target_fallback": "oldest",
+  "hives": [
+    {
+      "id": "hive-system",
+      "manifest": "hive/system.hive.txt",
+      "asset": "system.hiv"
+    }
+  ],
   "fixtures": [
     {
       "id": "wdm-ioctl",
@@ -118,6 +125,57 @@
       "solution": "_nk/nkc/nkc-reg.vcxproj",
       "required": ["nkc-reg.sys"],
       "optional": ["nkc-reg.pdb"]
+    },
+    {
+      "id": "nkc-seh",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-seh.vcxproj",
+      "required": ["nkc-seh.sys"],
+      "optional": ["nkc-seh.pdb"]
+    },
+    {
+      "id": "nkc-seh-fatal",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-seh-fatal.vcxproj",
+      "required": ["nkc-seh-fatal.sys"],
+      "optional": ["nkc-seh-fatal.pdb"]
+    },
+    {
+      "id": "nkc-lib",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-lib.vcxproj",
+      "required": ["nkc-lib.sys"],
+      "optional": ["nkc-lib.pdb"],
+      "expect": {
+        "exports": ["#7", "DllInitialize", "DllUnload", "NkcLibAdd", "NkcLibCounts",
+                    "NkcLibSetValue", "NkcLibValue"]
+      }
+    },
+    {
+      "id": "nkc-libuser",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-libuser.vcxproj",
+      "required": ["nkc-libuser.sys"],
+      "optional": ["nkc-libuser.pdb"],
+      "expect": {
+        "imports": {"nkc-lib.sys": ["#7", "NkcLibAdd", "NkcLibCounts", "NkcLibSetValue",
+                                    "NkcLibValue"]}
+      }
+    },
+    {
+      "id": "nkc-libbad",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-libbad.vcxproj",
+      "required": ["nkc-libbad.sys"],
+      "optional": ["nkc-libbad.pdb"],
+      "expect": {
+        "imports": {"nkc-lib.sys": ["NkcLibAbsent", "NkcLibAdd"]}
+      }
     },
     {
       "id": "wdm-cancel",

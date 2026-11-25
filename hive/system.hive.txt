@@ -1,0 +1,187 @@
+# What the fixture hive `system.hiv` holds.
+#
+# The build has Windows itself create these keys and values in an empty
+# hive and save it (scripts/hive.py), so the file is a real hive, written
+# by Microsoft's registry, of content that is all NK's.
+#
+# Format. One line per key and one per value; blank lines and lines that
+# start with '#' are ignored. The file is ASCII.
+#
+#   key <path>                     a key; the keys above it need no line
+#   key <path> class <string>      the same, with a class string
+#   keys <path-prefix> <count>     <count> keys: the prefix followed by
+#                                  0000, 0001, ...
+#   value <name> <type> <data>     a value of the key on the nearest
+#                                  `key` line above
+#
+# Fields are separated by spaces. A field is a bare word, taken as it
+# stands, or a JSON string in double quotes: "two words", "" for an empty
+# string, \\ for a backslash, \" for a quote, \uXXXX for a character
+# outside ASCII. A path is relative to the root of the hive, its
+# components separated by '\' (so by \\ inside quotes). The name "" is
+# the key's unnamed value. Names differing only in case are one name.
+#
+# Types and their data:
+#   sz, expand_sz    one string, stored as UTF-16 with its terminator
+#   multi_sz         any number of strings, each stored with its
+#                    terminator, then one terminator more
+#   dword            one number, decimal or 0x hex, stored in 4 bytes
+#   dword_be         the same, most significant byte first
+#   qword            one number, stored in 8 bytes
+#   none, binary, resource_list, full_resource_descriptor,
+#   resource_requirements_list    raw data
+# Raw data, which any type accepts in place of the above, stored exactly:
+#   hex:<digits>     these bytes; "hex:" alone is no data at all
+#   counter:<n>      n bytes: the numbers 0, 1, 2, ... as 32-bit
+#                    little-endian words, cut off after n bytes
+#
+# The name of the hive's root key is not part of the content: whoever
+# loads the hive decides where it appears (Windows: \Registry\Machine\SYSTEM).
+
+# --- What a kernel reads at boot ---------------------------------------------
+#
+# Where each value comes from is stated. "Inferred" means written from
+# memory of what a stock Windows 10 installation holds, not checked
+# against one or against documentation; the reference VM of the kernel
+# repository can confirm or correct it.
+
+# Which control set is current. Documented: the three numbers name
+# ControlSet00N. (Windows also keeps a value Failed.)
+key Select
+value Current dword 1
+value Default dword 1
+value LastKnownGood dword 1
+
+# The order in which groups of drivers start. The names and their order
+# relative to each other are Windows' (inferred); Windows' list is longer.
+# The last two are the groups the services below belong to.
+key ControlSet001\Control\ServiceGroupOrder
+value List multi_sz "System Reserved" "Boot Bus Extender" "System Bus Extender" "Boot File System" Base "File System"
+
+# Device setup classes: present, and empty.
+key ControlSet001\Control\Class
+
+# Services. Type 1 is a kernel driver, 2 a file system driver. Start 1 is
+# started by the kernel during initialisation, 3 on demand. ErrorControl 1
+# logs a failure and carries on. The meaning of the numbers is documented
+# (the CreateService function); the particular values are inferred.
+
+# Inferred: all five values.
+key ControlSet001\Services\Null
+value Type dword 1
+value Start dword 1
+value ErrorControl dword 1
+value Group sz Base
+value ImagePath expand_sz \SystemRoot\System32\Drivers\Null.SYS
+
+# Inferred: all five values. (Windows also has the subkey Aliases.)
+key ControlSet001\Services\Npfs
+value Type dword 2
+value Start dword 1
+value ErrorControl dword 1
+value Group sz "File System"
+value ImagePath expand_sz \SystemRoot\System32\Drivers\Npfs.SYS
+
+# Inferred: all four values, Start least certainly; no Group.
+key ControlSet001\Services\msrpc
+value Type dword 1
+value Start dword 3
+value ErrorControl dword 1
+value ImagePath expand_sz System32\drivers\msrpc.sys
+
+# wmilib and wpprecorder are libraries other drivers import from. Whether
+# a stock installation has a Services key for either is not known here:
+# these two keys are NK's, written so that every driver a test loads has
+# a key, with the values of an on-demand kernel driver.
+key ControlSet001\Services\wmilib
+value Type dword 1
+value Start dword 3
+value ErrorControl dword 1
+value ImagePath expand_sz System32\drivers\wmilib.sys
+
+key ControlSet001\Services\wpprecorder
+value Type dword 1
+value Start dword 3
+value ErrorControl dword 1
+value ImagePath expand_sz System32\drivers\WppRecorder.sys
+
+# --- A subtree that exercises the hive format ---------------------------------
+#
+# Nothing in Windows reads ControlSet001\Control\NkTest.
+
+# The unnamed value.
+key ControlSet001\Control\NkTest
+value "" sz "the unnamed value"
+
+# A value of every common type.
+key ControlSet001\Control\NkTest\Types
+value None none hex:
+value NoneWithData none hex:0102
+value String sz nk
+value EmptyString sz ""
+value Expand expand_sz %SystemRoot%\nk
+value Binary binary hex:000102030405060708090a0b0c0d0e0f
+value Dword dword 0x12345678
+value DwordBigEndian dword_be 0x12345678
+value Multi multi_sz one two "three and four"
+value MultiEmpty multi_sz
+value Qword qword 0x0123456789abcdef
+value ResourceList resource_list hex:0100000001000000ffffffff0100010000000000
+value FullResourceDescriptor full_resource_descriptor hex:01000000ffffffff0100010000000000
+value ResourceRequirements resource_requirements_list hex:2000000001000000ffffffff000000000000000001000000010001000000000000000000
+# Strings as a driver may store them: no terminator, and half a character.
+value StringUnterminated sz hex:6e006b00
+value StringOddLength sz hex:6e006b
+
+# Sizes. Up to four bytes are kept in the value's own record; more goes
+# in a cell; more than 16344 bytes is split into segments ("big data").
+key ControlSet001\Control\NkTest\Sizes
+value Size0 binary hex:
+value Size1 binary hex:a1
+value Size2 binary hex:a1a2
+value Size3 binary hex:a1a2a3
+value Size4 binary hex:a1a2a3a4
+value Size5 binary hex:a1a2a3a4a5
+value Size16344 binary counter:16344
+value Size16345 binary counter:16345
+value Size40000 binary counter:40000
+value String20000 sz counter:20000
+
+# Names. A name made of characters below U+0100 is stored one byte per
+# character; any other name is stored as UTF-16.
+key ControlSet001\Control\NkTest\Names
+value ascii dword 1
+value "two words" dword 2
+value "caf\u00e9" dword 3
+value "\u03b1\u03b2\u03b3" dword 4
+value "\u65e5\u672c\u8a9e" dword 5
+value "\ud83d\ude00" dword 6
+value UPPER dword 7
+value lower dword 8
+value Mixed.Case-and_punctuation dword 9
+key ControlSet001\Control\NkTest\Names\ascii
+key "ControlSet001\\Control\\NkTest\\Names\\two words"
+key "ControlSet001\\Control\\NkTest\\Names\\caf\u00e9"
+key "ControlSet001\\Control\\NkTest\\Names\\\u03b1\u03b2\u03b3"
+key "ControlSet001\\Control\\NkTest\\Names\\\u65e5\u672c\u8a9e"
+key ControlSet001\Control\NkTest\Names\UPPER
+key ControlSet001\Control\NkTest\Names\lower
+key ControlSet001\Control\NkTest\Names\Mixed.Case-and_punctuation
+# Windows keeps subkeys sorted without regard to case: these come back as
+# a, B, c, D.
+key ControlSet001\Control\NkTest\Order\D
+key ControlSet001\Control\NkTest\Order\c
+key ControlSet001\Control\NkTest\Order\B
+key ControlSet001\Control\NkTest\Order\a
+
+# A key with a class string, and a value under it.
+key ControlSet001\Control\NkTest\Class class "NkClass \u03ba"
+value Value dword 1
+
+# Keys nested eight deep.
+key ControlSet001\Control\NkTest\Deep\1\2\3\4\5\6\7\8
+value Bottom sz here
+
+# Many subkeys: more than one list of them holds, so the key has a list
+# of lists. Key0000 to Key1199.
+keys ControlSet001\Control\NkTest\Many\Key 1200

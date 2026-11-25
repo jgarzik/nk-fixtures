@@ -15,11 +15,16 @@
  * PASSIVE_LEVEL, and returns the values it logged, followed by NKC_END.
  * What each value means is written next to the NkcPut that logs it.
  *
+ * A driver that defines NKC_CONTROL before including this file also
+ * provides NkcControl, which is given every other device-control code
+ * and returns the status the request completes with.
+ *
  * Rules for NkcRun, so that the list is the same on every machine, on
  * both architectures and with any number of processors:
  *   - log facts (an IRQL, a return value, a count), never addresses,
  *     times or anything that depends on scheduling;
- *   - use only documented routines, the way a driver is meant to;
+ *   - use only documented routines, the way a driver is meant to; the
+ *     one exception is the marked set in nkc-undoc.h;
  *   - leave nothing behind: IRQL, locks and allocations as found.
  *
  * This file is NK's, not Microsoft's. It includes only <ntddk.h>.
@@ -47,6 +52,9 @@ static VOID NkcPut(NKC_LOG *Log, ULONG Value)
 }
 
 static VOID NkcRun(NKC_LOG *Log);
+#ifdef NKC_CONTROL
+static NTSTATUS NkcControl(ULONG Code);
+#endif
 
 /* The driver's one device, for the routines that want a device object. */
 static PDEVICE_OBJECT NkcDeviceObject;
@@ -128,7 +136,11 @@ static NTSTATUS NkcDeviceControl(PDEVICE_OBJECT Device, PIRP Irp)
 
     UNREFERENCED_PARAMETER(Device);
     if (Stack->Parameters.DeviceIoControl.IoControlCode != NKC_IOCTL_RUN) {
+#ifdef NKC_CONTROL
+        return NkcComplete(Irp, NkcControl(Stack->Parameters.DeviceIoControl.IoControlCode), 0);
+#else
         return NkcComplete(Irp, STATUS_INVALID_DEVICE_REQUEST, 0);
+#endif
     }
     Log.Values = (ULONG *)Irp->AssociatedIrp.SystemBuffer;
     Log.Capacity = Stack->Parameters.DeviceIoControl.OutputBufferLength / sizeof(ULONG);
