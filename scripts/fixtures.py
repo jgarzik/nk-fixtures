@@ -26,6 +26,9 @@ import pe  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 MSBUILD_PLATFORM = {"x64": "x64", "arm64": "ARM64"}
+# Layout of the table in abi-probe/probe.c: an 88-byte name, a 64-bit value.
+ABI_NAME_LEN, ABI_ENTRY_LEN = 88, 96
+ABI_BEGIN, ABI_END = b"NKABI-BEGIN v1\0", "NKABI-END"
 ZIP_EPOCH = (1980, 1, 1, 0, 0, 0)
 
 
@@ -162,6 +165,16 @@ def cmd_build(args):
         "_NT_TARGET_VERSION": nt["Code"],
         "InfVerif_AdditionalOptions": "/samples",
     }
+    # A fixture whose source lives in this repository is copied into the
+    # samples checkout: the WDK NuGet packages are wired in by that tree's
+    # Directory.Build.props, which only applies to projects inside it.
+    for fx in cfg["fixtures"]:
+        if "local" in fx:
+            dest = (wds / fx["solution"]).parent
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(ROOT / fx["local"], dest)
+
     for sln in sorted({f["solution"] for f in cfg["fixtures"]}):
         log = logs / (Path(sln).stem + f".{args.arch}.binlog")
         devshell(vs_path, ["msbuild", wds / sln, "-t:Rebuild", "-m", "-noLogo",
@@ -186,6 +199,30 @@ def cmd_build(args):
 
 
 # --- collect ----------------------------------------------------------------
+
+def abi_table(image):
+    """The (name, value) facts the ABI probe's compiler recorded in `image`.
+
+    The table is found by its begin marker and read until its end marker, so
+    this works on the raw file without knowing section layout. Returns None
+    if the image holds no table; raises ValueError if the table is damaged.
+    """
+    start = image.find(ABI_BEGIN)
+    if start < 0:
+        return None
+    facts, off = [], start
+    while True:
+        entry = image[off:off + ABI_ENTRY_LEN]
+        if len(entry) < ABI_ENTRY_LEN:
+            raise ValueError("ABI table runs off the end of the image")
+        raw, value = entry[:ABI_NAME_LEN], int.from_bytes(entry[ABI_NAME_LEN:], "little")
+        if b"\0" not in raw:
+            raise ValueError("ABI table entry name is not terminated")
+        name = raw.split(b"\0", 1)[0].decode("ascii")
+        if name == ABI_END:
+            return facts
+        facts.append((name, value))
+        off += ABI_ENTRY_LEN
 
 def find_outputs(sln_dir, name, arch, configuration):
     """All build outputs called `name` for this arch/configuration, shortest path first."""
@@ -257,6 +294,19 @@ def cmd_collect(args):
                 asset = f"{fx['id']}.{arch}.{primary.name}"
                 shutil.copyfile(primary, out / asset)
                 entry["asset"] = asset
+                try:
+                    facts = abi_table(primary.read_bytes())
+                except ValueError as e:
+                    die(f"{primary}: {e}")
+                if facts is not None:
+                    # One fact per line, e.g. "sizeof DEVICE_OBJECT 336".
+                    text = "".join(f"{name} {value}\n" for name, value in facts)
+                    table = f"{fx['id']}.{arch}.txt"
+                    (out / table).write_text(text, newline="\n")
+                    entry["abi_table"] = {"asset": table, "facts": len(facts),
+                                          "sha256": hashlib.sha256(text.encode()).hexdigest()}
+                elif fx.get("abi_table"):
+                    die(f"{primary}: no ABI table found")
             files.append(entry)
             bundle.append((entry["bundle_path"], primary))
 

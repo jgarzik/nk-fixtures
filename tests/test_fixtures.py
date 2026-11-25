@@ -81,6 +81,44 @@ class PeTests(unittest.TestCase):
                 pe.parse(bad)
 
 
+def abi_blob(facts, terminate=True):
+    """Bytes shaped like the probe's table, surrounded by unrelated data."""
+    def entry(name, value):
+        return name.encode().ljust(fixtures.ABI_NAME_LEN, b"\0") + value.to_bytes(8, "little")
+    body = entry("NKABI-BEGIN v1", 8) + b"".join(entry(n, v) for n, v in facts)
+    return b"\x90" * 37 + body + (entry("NKABI-END", 0) if terminate else b"") + b"tail"
+
+
+class AbiTableTests(unittest.TestCase):
+    FACTS = [("sizeof DEVICE_OBJECT", 0x150),
+             ("offsetof IRP Tail.Overlay.CurrentStackLocation", 0xB8)]
+
+    def test_extracts_facts_between_markers(self):
+        got = fixtures.abi_table(abi_blob(self.FACTS))
+        self.assertEqual(got, [("NKABI-BEGIN v1", 8)] + self.FACTS)
+
+    def test_image_without_table(self):
+        self.assertIsNone(fixtures.abi_table(make_pe()))
+
+    def test_damaged_table_is_an_error(self):
+        with self.assertRaises(ValueError):
+            fixtures.abi_table(abi_blob(self.FACTS, terminate=False))
+
+    def test_probe_names_fit_the_table(self):
+        """Every fact name in probe.c must fit, or MSVC rejects the build."""
+        import re
+        src = (ROOT / "abi-probe" / "probe.c").read_text()
+        limit = int(re.search(r"#define NKABI_NAME_LEN (\d+)", src).group(1))
+        self.assertEqual(limit, fixtures.ABI_NAME_LEN)
+        names = [f"sizeof {m}" for m in re.findall(r"^\s*SZ\((\w+)\)", src, re.M)]
+        names += [f"offsetof {a} {b}" for a, b in re.findall(r"^\s*OFF\((\w+), ([\w.]+)\)", src, re.M)]
+        names += re.findall(r'^\s*\{ "([^"]+)"', src, re.M)
+        self.assertGreater(len(names), 100)
+        self.assertEqual(len(names), len(set(names)), "duplicate fact name")
+        for n in names:
+            self.assertLess(len(n), limit, n)
+
+
 class NtTargetTests(unittest.TestCase):
     VERS = [{"Version": "10.0.28000", "Tag": "28000", "Code": "0xA000012", "Build": 28000},
             {"Version": "10.0.19041", "Tag": "19041", "Code": "0xA000008", "Build": 19041},
@@ -176,6 +214,25 @@ class PipelineTests(unittest.TestCase):
         entry = next(f for f in m["files"] if f["name"] == "sioctl.sys")
         self.assertEqual(len(entry["variants"]), 1)
         self.assertFalse(entry["pe"]["signed"])
+
+    def test_abi_table_is_published_as_text(self):
+        cfg = json.loads(self.cfg.read_text())
+        cfg["fixtures"].append({"id": "abi-probe", "framework": "WDM", "abi_table": True,
+                                "solution": "_nk/abi-probe/abi-probe.vcxproj",
+                                "required": ["abi-probe.sys"], "optional": []})
+        self.cfg.write_text(json.dumps(cfg))
+        d = self.wds / "_nk/abi-probe/x64/Release"
+        d.mkdir(parents=True)
+        (d / "abi-probe.sys").write_bytes(make_pe() + abi_blob([("sizeof IRP", 208)]))
+        self.collect("x64")
+        self.assertEqual((self.dist / "abi-probe.x64.txt").read_text(),
+                         "NKABI-BEGIN v1 8\nsizeof IRP 208\n")
+        m = json.loads((self.dist / "manifest-x64.json").read_text())
+        entry = next(f for f in m["files"] if f["name"] == "abi-probe.sys")
+        self.assertEqual(entry["abi_table"]["facts"], 2)
+        # A probe image that lost its table must not be published.
+        (d / "abi-probe.sys").write_bytes(make_pe())
+        self.assertIn("no ABI table", self.collect_fail("x64"))
 
     def test_missing_required_fails(self):
         (self.wds / "general/ioctl/wdm/sys/ARM64/Release/sioctl.sys").unlink()

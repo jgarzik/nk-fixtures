@@ -30,6 +30,15 @@
       "solution": "general/echo/kmdf/kmdfecho.sln",
       "required": ["echo_2.sys"],
       "optional": ["echo_2.pdb", "echo_2.inf", "echo_2.cat", "echo_2.cer"]
+    },
+    {
+      "id": "abi-probe",
+      "framework": "WDM",
+      "local": "abi-probe",
+      "solution": "_nk/abi-probe/abi-probe.vcxproj",
+      "abi_table": true,
+      "required": ["abi-probe.sys"],
+      "optional": ["abi-probe.pdb"]
     }
   ]
 }

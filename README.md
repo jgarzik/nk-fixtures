@@ -20,7 +20,27 @@ at the commit pinned in `fixtures.json`. No source or binary patching, ever.
 | `kmdf-echo-autosync` | `echo.sys` (+ `echoapp.exe`) | KMDF | `general/echo/kmdf` |
 | `kmdf-echo-driversync` | `echo_2.sys` | KMDF | `general/echo/kmdf` |
 
+| `abi-probe` | `abi-probe.sys` | WDM | this repository, `abi-probe/` |
+
 Each is built `Release` for `x64` and `arm64`.
+
+### The ABI probe
+
+`abi-probe/probe.c` is the one source file here that is not Microsoft's.
+It includes only `<ntddk.h>` and declares a table of `sizeof` and
+`FIELD_OFFSET` values for driver-visible structures (`DEVICE_OBJECT`,
+`IRP`, `MDL`, ...). The WDK compiles it like any driver, so the numbers
+are what Microsoft's compiler and headers produce for the pinned target.
+The pipeline reads the table back out of the built image and publishes it
+as `abi-probe.<arch>.txt`, one fact per line:
+
+```
+sizeof DEVICE_OBJECT 336
+offsetof IRP Tail.Overlay.CurrentStackLocation 184
+```
+
+A kernel can check its own structure definitions against that file. The
+driver itself is not meant to be loaded.
 
 ## Build settings
 
@@ -46,6 +66,7 @@ manual runs only upload CI artifacts.
 Release assets:
 
 - `<fixture-id>.<arch>.<driver>.sys` — each driver as a directly fetchable file
+- `abi-probe.<arch>.txt` — the ABI probe's table as text
 - `nk-fixtures-<arch>.zip` — everything for one arch: drivers, PDBs, INF/CAT,
   companion apps, upstream license
 - `manifest.json` — upstream commit, toolchain versions, msbuild properties,
@@ -61,8 +82,9 @@ mismatch.
 
 ## Changing the pin
 
-Edit `fixtures.json` (`upstream.commit`, `nt_target`, fixture list), push,
-check the CI artifacts, then tag.
+Edit `fixtures.json` (`upstream.commit`, `nt_target`, fixture list), push
+to a branch, open a pull request, check the CI artifacts, merge, then tag.
+`main` takes no direct pushes.
 
 ## Local checks
 
