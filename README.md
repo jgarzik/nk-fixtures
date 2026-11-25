@@ -1,15 +1,20 @@
 # nk-fixtures
 
-Windows kernel-driver test fixtures for the NK
-kernel: Microsoft's own driver samples, built unmodified with the genuine
-Microsoft WDK on GitHub's Windows runners, published as hash-locked release
-assets.
+Windows kernel-driver test fixtures for the NK kernel, built with the
+genuine Microsoft WDK on GitHub's Windows runners and published as
+hash-locked release assets: Microsoft's own driver samples, unmodified;
+drivers of NK's own that record what Windows does; a table of structure
+layouts; and a registry hive.
 
 This repo is deliberately separate from the kernel. The fixtures are external
 compatibility targets; they must not evolve in step with the kernel that is
 tested against them.
 
 ## What gets built
+
+Each driver is built `Release` for `x64` and `arm64`.
+
+### Microsoft's samples
 
 Source: [microsoft/Windows-driver-samples](https://github.com/microsoft/Windows-driver-samples)
 at the commit pinned in `fixtures.json`. No source or binary patching, ever.
@@ -19,14 +24,55 @@ at the commit pinned in `fixtures.json`. No source or binary patching, ever.
 | `wdm-ioctl` | `sioctl.sys` (+ `ioctlapp.exe`) | WDM | `general/ioctl/wdm` |
 | `kmdf-echo-autosync` | `echo.sys` (+ `echoapp.exe`) | KMDF | `general/echo/kmdf` |
 | `kmdf-echo-driversync` | `echo_2.sys` | KMDF | `general/echo/kmdf` |
+| `wdm-cancel` | `cancel.sys` | WDM | `general/cancel/sys` |
+| `wdm-cancel-startio` | `cancel.sys` | WDM | `general/cancel/startio` |
+| `wdm-event` | `event.sys` | WDM | `general/event` |
 
-| `abi-probe` | `abi-probe.sys` | WDM | this repository, `abi-probe/` |
+### Conformance drivers
 
-Each is built `Release` for `x64` and `arm64`.
+The sources in `nkc/` are NK's, not Microsoft's. A conformance driver
+exercises a few kernel routines and writes down what it observed as a
+list of 32-bit values; the same binary is loaded on real Windows and on
+the kernel under test, and the two lists must be identical. `nkc/nkc.h`
+is the part they share and states the rules: facts only, never addresses
+or times; documented routines only, with the one exception marked in
+`nkc/nkc-undoc.h`; nothing left behind. Each driver creates one device,
+`\Device\<name>`, and answers device-control code `0x222000` with its
+list; what every value means is written next to the line that logs it.
+
+The fixture id is the driver's name: `nkc-irql` is `nkc-irql.sys`.
+
+| Fixture id | Device | Observes |
+| --- | --- | --- |
+| `nkc-irql` | `NkcIrql` | IRQL and spin locks |
+| `nkc-dpc` | `NkcDpc` | deferred procedure calls |
+| `nkc-timer` | `NkcTimer` | kernel timers with a DPC |
+| `nkc-time` | `NkcTime` | clocks |
+| `nkc-thread` | `NkcThread` | system threads |
+| `nkc-wait` | `NkcWait` | waiting on one object |
+| `nkc-waitn` | `NkcWaitN` | waiting on several objects at once |
+| `nkc-mutex` | `NkcMutex` | mutexes, fast mutexes and critical regions |
+| `nkc-work` | `NkcWork` | work items |
+| `nkc-se` | `NkcSe` | security descriptors |
+| `nkc-reg` | `NkcReg` | the registry, as a driver uses it |
+| `nkc-seh` | `NkcSeh` | structured exception handling: the order of filters, `__finally` blocks and handlers, what a filter is shown, unwinding, the kernel's raising routines, probes, memory faults a `__try` catches |
+| `nkc-seh-fatal` | `NkcSehFatal` | nothing by its list, which is empty: each of its other device-control codes (`0x222400` to `0x222410`, listed at the top of the source) does one thing Windows answers with a bugcheck |
+| `nkc-libuser` | `NkcLibUser` | what it imports from `nkc-lib.sys`: functions by name and by ordinal, a variable, and how often the library was initialised |
+| `nkc-lib` | none | an export driver (kernel-mode library): nothing loads it but an importer's import table |
+| `nkc-libbad` | `NkcLibBad` | nothing: it imports a name `nkc-lib.sys` does not export, so a loader must refuse it |
+
+`nkc-libuser` and `nkc-libbad` do not link against the library's project
+output. Before linking, each makes its import library with `lib /def`:
+`nkc-libuser` from `nkc-lib.def`, the file the library itself is linked
+with, and `nkc-libbad` from `nkc-libbad.def`, which lists one symbol more
+and has no library behind it. `fixtures.json` states under `expect` what
+each of the three must import or export, and the pipeline refuses a
+build that linked otherwise.
 
 ### The ABI probe
 
-The sources in `abi-probe/` are NK's, not Microsoft's. Each declares a
+Fixture `abi-probe`, `abi-probe.sys`. The sources in `abi-probe/` are
+NK's, not Microsoft's. Each declares a
 table of `sizeof` and `FIELD_OFFSET` values for driver-visible structures,
 and of constants a kernel must agree on. The WDK compiles them like any
 driver, so the numbers are what Microsoft's compiler and headers produce
@@ -107,6 +153,7 @@ manual runs only upload CI artifacts.
 Release assets:
 
 - `<fixture-id>.<arch>.<driver>.sys` — each driver as a directly fetchable file
+  (`nkc-seh.x64.nkc-seh.sys`, `wdm-ioctl.arm64.sioctl.sys`, ...)
 - `abi-probe.<arch>.txt` — the ABI probe's table as text
 - `system.hiv` — the registry hive, the same for every architecture
 - `nk-fixtures-<arch>.zip` — everything for one arch: drivers, PDBs, INF/CAT,
@@ -133,6 +180,8 @@ to a branch, open a pull request, check the CI artifacts, merge, then tag.
 ## Local checks
 
 The build itself needs Windows. Everything else is tested on any host:
+the PE reader, the ABI table reader, the hive manifest and its parser,
+`fixtures.json` against the sources, collect and finalize.
 
 ```sh
 python3 -m unittest discover -s tests
