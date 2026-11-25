@@ -32,14 +32,14 @@
       "optional": ["echo_2.pdb", "echo_2.inf", "echo_2.cat", "echo_2.cer"]
     },
     {
-<<<<<<< HEAD
       "id": "nkc-irql",
       "framework": "WDM",
       "local": "nkc",
       "solution": "_nk/nkc/nkc-irql.vcxproj",
       "required": ["nkc-irql.sys"],
       "optional": ["nkc-irql.pdb"]
-=======
+    },
+    {
       "id": "wdm-cancel",
       "framework": "WDM",
       "solution": "general/cancel/cancel.sln",
@@ -61,7 +61,6 @@
       "solution": "general/event/eventsample.sln",
       "required": ["event.sys"],
       "optional": ["event.pdb"]
->>>>>>> dab4d18 (probe: build Microsoft's cancel and event samples (throwaway))
     },
     {
       "id": "abi-probe",
