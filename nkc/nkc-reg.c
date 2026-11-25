@@ -50,6 +50,30 @@ static VOID NkcQuery(NKC_LOG *Log, HANDLE Key, PCWSTR Value, ULONG Room)
     }
 }
 
+/* The same in the full form, which carries the name: log the status and
+ * the length reported, and, when the header fitted, the type, where the
+ * data is, its length and the name's. */
+static VOID NkcQueryFull(NKC_LOG *Log, HANDLE Key, PCWSTR Value, ULONG Room)
+{
+    UCHAR Buffer[64];
+    PKEY_VALUE_FULL_INFORMATION Info = (PKEY_VALUE_FULL_INFORMATION)Buffer;
+    UNICODE_STRING Name;
+    ULONG Length = 0xEEEEEEEE;
+    NTSTATUS Status;
+
+    RtlInitUnicodeString(&Name, Value);
+    RtlFillMemory(Buffer, sizeof(Buffer), 0xEE);
+    Status = ZwQueryValueKey(Key, &Name, KeyValueFullInformation, Buffer, Room, &Length);
+    NkcPut(Log, (ULONG)Status);
+    NkcPut(Log, Length);
+    if (Status == STATUS_SUCCESS || Status == STATUS_BUFFER_OVERFLOW) {
+        NkcPut(Log, Info->Type);
+        NkcPut(Log, Info->DataOffset);
+        NkcPut(Log, Info->DataLength);
+        NkcPut(Log, Info->NameLength);
+    }
+}
+
 static VOID NkcRun(NKC_LOG *Log)
 {
     HANDLE Key, Again;
@@ -102,6 +126,20 @@ static VOID NkcRun(NKC_LOG *Log)
      * that would have been needed. Then no room at all. */
     NkcQuery(Log, Key, L"Text", FIELD_OFFSET(KEY_VALUE_PARTIAL_INFORMATION, Data));
     NkcQuery(Log, Key, L"Text", 0);
+
+    /* The full form of the string: with room for all of it, with room
+     * for its header alone, and with none. Then of a value whose name
+     * has an odd number of letters, and of one with no data. */
+    NkcQueryFull(Log, Key, L"TEXT", 64);
+    NkcQueryFull(Log, Key, L"Text", FIELD_OFFSET(KEY_VALUE_FULL_INFORMATION, Name));
+    NkcQueryFull(Log, Key, L"Text", 0);
+    RtlInitUnicodeString(&Name, L"Odd");
+    NkcPut(Log, (ULONG)ZwSetValueKey(Key, &Name, 0, REG_BINARY, &Number, 3));
+    NkcQueryFull(Log, Key, L"Odd", 64);
+    RtlInitUnicodeString(&Name, L"Empty");
+    NkcPut(Log, (ULONG)ZwSetValueKey(Key, &Name, 0, REG_BINARY, NULL, 0));
+    NkcQueryFull(Log, Key, L"Empty", 64);
+    NkcQuery(Log, Key, L"Empty", sizeof(KEY_VALUE_PARTIAL_INFORMATION));
 
     /* 0, then 0x12345679 read back: a value is replaced by setting it. */
     Number++;
