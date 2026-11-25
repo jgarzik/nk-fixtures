@@ -260,7 +260,9 @@ def cmd_collect(args):
 
     files, bundle = [], []
     for fx in cfg["fixtures"]:
-        sln_dir = (wds / fx["solution"]).parent
+        # `subdir` narrows the search when one solution builds two projects
+        # whose outputs share a name.
+        sln_dir = (wds / fx["solution"]).parent / fx.get("subdir", "")
         for name in fx["required"] + fx["optional"]:
             hits = find_outputs(sln_dir, name, arch, conf)
             if not hits:
