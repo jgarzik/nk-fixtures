@@ -5,6 +5,7 @@ Subcommands (see README.md):
   pin       print upstream repo/commit as key=value lines (for $GITHUB_OUTPUT)
   build     restore the WDK NuGet packages and msbuild each fixture solution (Windows)
   collect   gather build outputs for one arch into dist/: zip, loose .sys, partial manifest
+  hive      have Windows write the registry hives into dist/ (Windows, elevated)
   finalize  merge per-arch manifests and write SHA256SUMS (any OS)
 
 Standard library only.
@@ -18,10 +19,12 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import hive  # noqa: E402
 import pe  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -30,6 +33,8 @@ MSBUILD_PLATFORM = {"x64": "x64", "arm64": "ARM64"}
 ABI_NAME_LEN, ABI_ENTRY_LEN = 88, 96
 ABI_BEGIN, ABI_END = b"NKABI-BEGIN v1\0", "NKABI-END"
 ZIP_EPOCH = (1980, 1, 1, 0, 0, 0)
+# What the `hive` step leaves in dist/ for `finalize` to merge.
+HIVE_MANIFEST = "hive-manifest.json"
 
 
 def die(msg):
@@ -363,6 +368,83 @@ def cmd_collect(args):
     print(f"collected {len(files)} files for {arch} into {out}")
 
 
+# --- hive -------------------------------------------------------------------
+
+def hive_entry(hv, keys, image):
+    """The manifest's record of one hive file. Dies unless `image` is a
+    clean hive that can hold what its manifest asks for."""
+    try:
+        regf = hive.inspect(image)
+    except ValueError as e:
+        die(f"{hv['asset']}: {e}")
+    for field in ("checksum_ok", "clean", "file_length_matches"):
+        if not regf[field]:
+            die(f"{hv['asset']}: not a clean hive ({field} is false)")
+    stats = hive.summary(keys)
+    if stats["largest_value"] > hive.MAX_CELL_DATA and (regf["major"], regf["minor"]) < (1, 4):
+        die(f"{hv['asset']}: hive version {regf['version']} has no big-data cells, "
+            f"and the manifest has a value of {stats['largest_value']} bytes")
+    source = ROOT / hv["manifest"]
+    return {"hive": hv["id"], "name": hv["asset"], "asset": hv["asset"],
+            "size": len(image), "sha256": hashlib.sha256(image).hexdigest(),
+            "source_path": hv["manifest"], "source_sha256": sha256(source),
+            **stats, "regf": regf}
+
+
+def cmd_hive(args):
+    cfg = load_config(args.config)
+    if sys.platform != "win32":
+        die("the hive step has Windows write the hive: it runs on Windows only")
+    out = Path(args.out).resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    entries = []
+    for hv in cfg.get("hives", []):
+        try:
+            keys = hive.parse((ROOT / hv["manifest"]).read_text(encoding="ascii"))
+        except (hive.ManifestError, UnicodeDecodeError) as e:
+            die(f"{hv['manifest']}: {e}")
+        # Windows writes into a scratch directory: a loaded hive grows log
+        # files beside it, and none of that belongs among the assets. Only
+        # the saved hive's bytes are copied out.
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as work:
+            saved = Path(work) / "saved.hiv"
+            try:
+                hive.build(keys, saved, work)
+            except OSError as e:
+                die(f"{hv['asset']}: {e}")
+            image = saved.read_bytes()
+        entry = hive_entry(hv, keys, image)
+        (out / hv["asset"]).write_bytes(image)
+        entries.append(entry)
+        print(f"{hv['asset']}: {entry['keys']} keys, {entry['values']} values, "
+              f"{entry['size']} bytes, hive version {entry['regf']['version']}")
+    info = {"runner": {"image_os": os.environ.get("ImageOS"),
+                       "image_version": os.environ.get("ImageVersion")},
+            "windows_version": sys.getwindowsversion()[:3] if sys.platform == "win32" else None,
+            **run_info()}
+    (out / HIVE_MANIFEST).write_text(json.dumps({"build": info, "hives": entries}, indent=2)
+                                     + "\n")
+
+
+def merge_hives(cfg, dist):
+    """The hive step's records, checked against the files beside them."""
+    wanted = [hv["id"] for hv in cfg.get("hives", [])]
+    path = dist / HIVE_MANIFEST
+    if not wanted:
+        return None
+    if not path.exists():
+        die(f"no {HIVE_MANIFEST} in {dist}")
+    part = json.loads(path.read_text())
+    if [h["hive"] for h in part["hives"]] != wanted:
+        die(f"{HIVE_MANIFEST} holds {[h['hive'] for h in part['hives']]}, expected {wanted}")
+    for h in part["hives"]:
+        asset = dist / h["asset"]
+        if not asset.exists() or sha256(asset) != h["sha256"]:
+            die(f"{h['asset']} is missing or is not the file its record describes")
+    path.unlink()
+    return part
+
+
 # --- finalize ---------------------------------------------------------------
 
 def cmd_finalize(args):
@@ -384,6 +466,9 @@ def cmd_finalize(args):
         "builds": {m["arch"]: {"bundle": m["bundle"], **m["build"]} for m in per_arch},
         "files": [f for m in per_arch for f in m["files"]],
     }
+    hives = merge_hives(cfg, dist)
+    if hives:
+        manifest["hives"] = {"build": hives["build"], "files": hives["hives"]}
     (dist / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     for p in parts:
         p.unlink()
@@ -412,6 +497,9 @@ def main():
         p.add_argument("--wds", required=True, help="Windows-driver-samples checkout")
         p.add_argument("--out", default="dist")
         p.set_defaults(fn=fn)
+    p = sub.add_parser("hive")
+    p.add_argument("--out", default="dist")
+    p.set_defaults(fn=cmd_hive)
     p = sub.add_parser("finalize")
     p.add_argument("--dist", default="dist")
     p.add_argument("--tag", required=True)

@@ -9,6 +9,13 @@
   "archs": ["x64", "arm64"],
   "nt_target": "19041",
   "nt_target_fallback": "oldest",
+  "hives": [
+    {
+      "id": "hive-system",
+      "manifest": "hive/system.hive.txt",
+      "asset": "system.hiv"
+    }
+  ],
   "fixtures": [
     {
       "id": "wdm-ioctl",

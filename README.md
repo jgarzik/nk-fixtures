@@ -48,6 +48,41 @@ offsetof IRP Tail.Overlay.CurrentStackLocation 184
 A kernel can check its own structure definitions against that file. The
 driver itself is not meant to be loaded.
 
+### The registry hive
+
+`hive/system.hive.txt` lists registry keys and values, one per line; the
+format is documented at the top of the file. A CI job on the Windows
+runner turns it into a real hive, `system.hiv`
+(`scripts/fixtures.py hive`, `scripts/hive.py`):
+
+1. an empty key under `HKLM\SOFTWARE` is saved to a file, which is an
+   empty hive;
+2. that hive is loaded at `HKLM\NKHIVE`;
+3. every key is created with `RegCreateKeyExW` and every value set with
+   `NtSetValueKey`, so the stored bytes are exactly the manifest's;
+4. the hive is saved in the latest hive format (`RegSaveKeyExW`,
+   `REG_LATEST_FORMAT`) and unloaded.
+
+So the content is NK's and the container is written by Microsoft's
+registry: its cells, lists, hashes, security records and checksum are
+what Windows produces. The content: `Select`; under `ControlSet001`,
+`Control\ServiceGroupOrder`, an empty `Control\Class`, `Services` keys
+for `Null`, `Npfs`, `msrpc`, `wmilib` and `wpprecorder`; and
+`Control\NkTest`, which exercises the format (every common value type,
+values of 0 to 5 bytes, values past 16344 bytes that need big-data
+cells, names that are and are not Latin-1, a key with a class, 1200
+subkeys of one key). The service values are written from memory of a
+stock Windows 10 installation, not confirmed against one; the manifest
+says so line by line.
+
+`reg.exe` is not used: it cannot set a key's class, and a value larger
+than a command line cannot be passed to it.
+
+The job refuses to publish a file that is not a clean hive (signature,
+checksum, sequence numbers, length) or whose format version has no
+big-data cells. The hive is not reproducible byte for byte (it carries
+timestamps); like every fixture, its identity is its SHA-256.
+
 ## Build settings
 
 - Runner `windows-2025-vs2026`; WDK and SDK come from the NuGet packages named
@@ -73,11 +108,14 @@ Release assets:
 
 - `<fixture-id>.<arch>.<driver>.sys` — each driver as a directly fetchable file
 - `abi-probe.<arch>.txt` — the ABI probe's table as text
+- `system.hiv` — the registry hive, the same for every architecture
 - `nk-fixtures-<arch>.zip` — everything for one arch: drivers, PDBs, INF/CAT,
   companion apps, upstream license
 - `manifest.json` — upstream commit, toolchain versions, msbuild properties,
   run URL, and per file: size, SHA-256, PE machine/timestamp/image size,
-  signature flag and the full import table by DLL
+  signature flag, the full import table by DLL and, for a driver that
+  exports, its export table; under `hives`, per hive: size, SHA-256, the
+  SHA-256 of its manifest, key and value counts and what its base block says
 - `SHA256SUMS` — hashes of every asset
 
 A release is immutable: the workflow refuses to overwrite an existing one. Any
