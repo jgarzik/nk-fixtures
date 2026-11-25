@@ -32,6 +32,61 @@
       "optional": ["echo_2.pdb", "echo_2.inf", "echo_2.cat", "echo_2.cer"]
     },
     {
+      "id": "nkc-irql",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-irql.vcxproj",
+      "required": ["nkc-irql.sys"],
+      "optional": ["nkc-irql.pdb"]
+    },
+    {
+      "id": "nkc-dpc",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-dpc.vcxproj",
+      "required": ["nkc-dpc.sys"],
+      "optional": ["nkc-dpc.pdb"]
+    },
+    {
+      "id": "nkc-timer",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-timer.vcxproj",
+      "required": ["nkc-timer.sys"],
+      "optional": ["nkc-timer.pdb"]
+    },
+    {
+      "id": "nkc-time",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-time.vcxproj",
+      "required": ["nkc-time.sys"],
+      "optional": ["nkc-time.pdb"]
+    },
+    {
+      "id": "wdm-cancel",
+      "framework": "WDM",
+      "solution": "general/cancel/cancel.sln",
+      "subdir": "sys",
+      "required": ["cancel.sys"],
+      "optional": ["cancel.pdb"]
+    },
+    {
+      "id": "wdm-cancel-startio",
+      "framework": "WDM",
+      "solution": "general/cancel/cancel.sln",
+      "subdir": "startio",
+      "required": ["cancel.sys"],
+      "optional": ["cancel.pdb"]
+    },
+    {
+      "id": "wdm-event",
+      "framework": "WDM",
+      "solution": "general/event/eventsample.sln",
+      "required": ["event.sys"],
+      "optional": ["event.pdb"]
+    },
+    {
       "id": "abi-probe",
       "framework": "WDM",
       "local": "abi-probe",
