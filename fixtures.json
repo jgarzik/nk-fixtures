@@ -128,6 +128,14 @@
       "optional": ["nkc-seh.pdb"]
     },
     {
+      "id": "nkc-seh-fatal",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-seh-fatal.vcxproj",
+      "required": ["nkc-seh-fatal.sys"],
+      "optional": ["nkc-seh-fatal.pdb"]
+    },
+    {
       "id": "wdm-cancel",
       "framework": "WDM",
       "solution": "general/cancel/cancel.sln",
