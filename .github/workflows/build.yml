@@ -1,0 +1,93 @@
+name: Build driver fixtures
+
+# Branch pushes and manual runs build and upload CI artifacts only.
+# Pushing a tag `v*` additionally publishes an immutable GitHub release.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build ${{ matrix.arch }}
+    runs-on: windows-2025-vs2026
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - name: Check out fixture recipes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Read upstream pin
+        id: pin
+        shell: pwsh
+        run: python scripts/fixtures.py pin | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Check out pinned Windows-driver-samples
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ steps.pin.outputs.repo }}
+          ref: ${{ steps.pin.outputs.commit }}
+          path: wds
+          persist-credentials: false
+
+      - name: Build with the WDK
+        run: python scripts/fixtures.py build --arch ${{ matrix.arch }} --wds wds --out dist
+
+      - name: Collect outputs
+        run: python scripts/fixtures.py collect --arch ${{ matrix.arch }} --wds wds --out dist
+
+      - name: Upload fixtures
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fixtures-${{ matrix.arch }}
+          path: |
+            dist
+            !dist/logs
+          if-no-files-found: error
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-${{ matrix.arch }}
+          path: dist/logs
+
+  release:
+    name: publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-2025-vs2026
+    permissions:
+      contents: write
+    steps:
+      - name: Check out fixture recipes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download per-arch fixtures
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          pattern: fixtures-*
+          merge-multiple: true
+
+      - name: Merge manifests and hash assets
+        shell: pwsh
+        run: python scripts/fixtures.py finalize --dist dist --tag $env:GITHUB_REF_NAME
+
+      # `gh release create` fails if the release exists: published fixtures are never overwritten.
+      - name: Create release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $assets = Get-ChildItem dist -File | ForEach-Object { $_.FullName }
+          gh release create $env:GITHUB_REF_NAME @assets --verify-tag `
+            --title "Driver fixtures $env:GITHUB_REF_NAME" `
+            --notes "WDK-built driver fixtures. Identify files by the SHA-256 in manifest.json / SHA256SUMS."

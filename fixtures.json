@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "upstream": {
+    "repo": "microsoft/Windows-driver-samples",
+    "commit": "d49bb7d72f3651952b2b6e4ad28d14fe2247eb69",
+    "license": "MS-PL"
+  },
+  "configuration": "Release",
+  "archs": ["x64", "arm64"],
+  "nt_target": "19041",
+  "nt_target_fallback": "oldest",
+  "fixtures": [
+    {
+      "id": "wdm-ioctl",
+      "framework": "WDM",
+      "solution": "general/ioctl/wdm/ioctl.sln",
+      "required": ["sioctl.sys"],
+      "optional": ["sioctl.pdb", "ioctlapp.exe", "ioctlapp.pdb"]
+    },
+    {
+      "id": "kmdf-echo-autosync",
+      "framework": "KMDF",
+      "solution": "general/echo/kmdf/kmdfecho.sln",
+      "required": ["echo.sys"],
+      "optional": ["echo.pdb", "echo.inf", "echo.cat", "echo.cer", "echoapp.exe", "echoapp.pdb"]
+    },
+    {
+      "id": "kmdf-echo-driversync",
+      "framework": "KMDF",
+      "solution": "general/echo/kmdf/kmdfecho.sln",
+      "required": ["echo_2.sys"],
+      "optional": ["echo_2.pdb", "echo_2.inf", "echo_2.cat", "echo_2.cer"]
+    }
+  ]
+}
