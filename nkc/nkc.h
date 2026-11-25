@@ -48,6 +48,65 @@ static VOID NkcPut(NKC_LOG *Log, ULONG Value)
 
 static VOID NkcRun(NKC_LOG *Log);
 
+/* The driver's one device, for the routines that want a device object. */
+static PDEVICE_OBJECT NkcDeviceObject;
+
+#ifdef NKC_THREADS
+/*
+ * Helper threads, for drivers that define NKC_THREADS before including
+ * this file. NkcStart creates a system thread and returns the thread
+ * object, referenced; NkcJoin waits for it to end and lets go of it.
+ */
+static PVOID NkcStart(PKSTART_ROUTINE Routine, PVOID Context)
+{
+    OBJECT_ATTRIBUTES Attributes;
+    HANDLE Handle;
+    PVOID Thread = NULL;
+
+    InitializeObjectAttributes(&Attributes, NULL, OBJ_KERNEL_HANDLE, NULL, NULL);
+    if (!NT_SUCCESS(PsCreateSystemThread(&Handle, THREAD_ALL_ACCESS, &Attributes, NULL, NULL,
+                                         Routine, Context))) {
+        return NULL;
+    }
+    if (!NT_SUCCESS(ObReferenceObjectByHandle(Handle, THREAD_ALL_ACCESS, *PsThreadType,
+                                              KernelMode, &Thread, NULL))) {
+        Thread = NULL;
+    }
+    ZwClose(Handle);
+    return Thread;
+}
+
+static VOID NkcJoin(PVOID Thread)
+{
+    if (Thread != NULL) {
+        KeWaitForSingleObject(Thread, Executive, KernelMode, FALSE, NULL);
+        ObDereferenceObject(Thread);
+    }
+}
+
+/* Sleep for `Ms` milliseconds. */
+static VOID NkcSleep(LONG Ms)
+{
+    LARGE_INTEGER Interval;
+
+    Interval.QuadPart = -(LONGLONG)Ms * 10000;
+    KeDelayExecutionThread(KernelMode, FALSE, &Interval);
+}
+
+/* Sleep until *Count reaches Wanted, for at most two seconds, then a
+ * little longer in case it would overshoot; return what it reached. */
+static LONG NkcSettle(volatile LONG *Count, LONG Wanted)
+{
+    ULONG Tries;
+
+    for (Tries = 0; Tries < 200 && *Count < Wanted; Tries++) {
+        NkcSleep(10);
+    }
+    NkcSleep(30);
+    return *Count;
+}
+#endif
+
 static NTSTATUS NkcComplete(PIRP Irp, NTSTATUS Status, ULONG_PTR Information)
 {
     Irp->IoStatus.Status = Status;
@@ -100,6 +159,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT Driver, PUNICODE_STRING RegistryPath)
     if (!NT_SUCCESS(Status)) {
         return Status;
     }
+    NkcDeviceObject = Device;
     Driver->MajorFunction[IRP_MJ_CREATE] = NkcCreateClose;
     Driver->MajorFunction[IRP_MJ_CLOSE] = NkcCreateClose;
     Driver->MajorFunction[IRP_MJ_DEVICE_CONTROL] = NkcDeviceControl;

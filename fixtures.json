@@ -64,6 +64,46 @@
       "optional": ["nkc-time.pdb"]
     },
     {
+      "id": "nkc-thread",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-thread.vcxproj",
+      "required": ["nkc-thread.sys"],
+      "optional": ["nkc-thread.pdb"]
+    },
+    {
+      "id": "nkc-wait",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-wait.vcxproj",
+      "required": ["nkc-wait.sys"],
+      "optional": ["nkc-wait.pdb"]
+    },
+    {
+      "id": "nkc-mutex",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-mutex.vcxproj",
+      "required": ["nkc-mutex.sys"],
+      "optional": ["nkc-mutex.pdb"]
+    },
+    {
+      "id": "nkc-waitn",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-waitn.vcxproj",
+      "required": ["nkc-waitn.sys"],
+      "optional": ["nkc-waitn.pdb"]
+    },
+    {
+      "id": "nkc-work",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-work.vcxproj",
+      "required": ["nkc-work.sys"],
+      "optional": ["nkc-work.pdb"]
+    },
+    {
       "id": "wdm-cancel",
       "framework": "WDM",
       "solution": "general/cancel/cancel.sln",
