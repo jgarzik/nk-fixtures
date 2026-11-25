@@ -2,7 +2,8 @@
  * ABI probe: records what Microsoft's own compiler and WDK headers say
  * about the size and layout of driver-visible kernel structures.
  *
- * This file is NK's, not Microsoft's, but it includes only <ntddk.h> and
+ * This file is NK's, not Microsoft's, but it includes only <ntifs.h>
+ * (which brings in <ntddk.h>; the security structures are declared there) and
  * is compiled by the WDK like any driver. The table below ends up as
  * plain data in the image; the fixture pipeline extracts it to a text
  * file. A kernel that claims Windows driver compatibility can then check
@@ -16,7 +17,7 @@
  * "sizeof <type>" and "offsetof <type> <member>".
  */
 
-#include <ntddk.h>
+#include <ntifs.h>
 
 #define NKABI_NAME_LEN 88
 
@@ -167,6 +168,59 @@ const NKABI_ENTRY NkAbiTable[] = {
     { "const IO_TYPE_DRIVER", IO_TYPE_DRIVER },
     { "const IO_TYPE_FILE", IO_TYPE_FILE },
     { "const IO_TYPE_IRP", IO_TYPE_IRP },
+
+    /* Security: identifiers, access lists, descriptors, and the table of
+     * well-known ones the kernel exports. */
+    SZ(SID)
+    OFF(SID, SubAuthorityCount)
+    OFF(SID, IdentifierAuthority)
+    OFF(SID, SubAuthority)
+    SZ(ACL)
+    OFF(ACL, AclSize)
+    OFF(ACL, AceCount)
+    SZ(ACE_HEADER)
+    OFF(ACE_HEADER, AceSize)
+    SZ(ACCESS_ALLOWED_ACE)
+    OFF(ACCESS_ALLOWED_ACE, Mask)
+    OFF(ACCESS_ALLOWED_ACE, SidStart)
+    SZ(SECURITY_DESCRIPTOR)
+    OFF(SECURITY_DESCRIPTOR, Control)
+    OFF(SECURITY_DESCRIPTOR, Owner)
+    OFF(SECURITY_DESCRIPTOR, Group)
+    OFF(SECURITY_DESCRIPTOR, Sacl)
+    OFF(SECURITY_DESCRIPTOR, Dacl)
+    SZ(SECURITY_DESCRIPTOR_RELATIVE)
+    OFF(SECURITY_DESCRIPTOR_RELATIVE, Owner)
+    OFF(SECURITY_DESCRIPTOR_RELATIVE, Dacl)
+    SZ(SE_EXPORTS)
+    OFF(SE_EXPORTS, SeNullSid)
+    OFF(SE_EXPORTS, SeWorldSid)
+    OFF(SE_EXPORTS, SeLocalSystemSid)
+    OFF(SE_EXPORTS, SeAliasAdminsSid)
+    OFF(SE_EXPORTS, SeAnonymousLogonSid)
+    OFF(SE_EXPORTS, SeUndockPrivilege)
+    OFF(SE_EXPORTS, SeIUserSid)
+
+    /* Named objects, the registry, cancel-safe queues. */
+    SZ(OBJECT_ATTRIBUTES)
+    OFF(OBJECT_ATTRIBUTES, ObjectName)
+    OFF(OBJECT_ATTRIBUTES, Attributes)
+    OFF(OBJECT_ATTRIBUTES, SecurityDescriptor)
+    SZ(KEY_VALUE_PARTIAL_INFORMATION)
+    OFF(KEY_VALUE_PARTIAL_INFORMATION, Type)
+    OFF(KEY_VALUE_PARTIAL_INFORMATION, DataLength)
+    OFF(KEY_VALUE_PARTIAL_INFORMATION, Data)
+    SZ(IO_CSQ)
+    OFF(IO_CSQ, CsqInsertIrp)
+    OFF(IO_CSQ, CsqRemoveIrp)
+    OFF(IO_CSQ, CsqPeekNextIrp)
+    OFF(IO_CSQ, CsqAcquireLock)
+    OFF(IO_CSQ, CsqReleaseLock)
+    OFF(IO_CSQ, CsqCompleteCanceledIrp)
+    OFF(IO_CSQ, ReservePointer)
+    SZ(IO_CSQ_IRP_CONTEXT)
+    OFF(IO_CSQ_IRP_CONTEXT, Irp)
+    OFF(IO_CSQ_IRP_CONTEXT, Csq)
 
 #if defined(_AMD64_)
     /*

@@ -50,8 +50,10 @@ static VOID NkcRun(NKC_LOG *Log)
     ExInitializeFastMutex(&State.Fast);
 
     /* Mutex.
-     * 1, 0: free, it reads 1; nothing disables APCs yet.
-     * 0, 0, 1: taken, it reads 0, and APCs are disabled while it is held.
+     * 1, 1: free, it reads 1. APCs are disabled already: the I/O manager
+     * calls a dispatch routine inside a critical region, and every
+     * "APCs disabled?" answer below is 1 for that reason alone.
+     * 0, 0, 1: taken, it reads 0.
      * 0, -1: its owner may take it again; it then reads -1. */
     NkcPut(Log, (ULONG)KeReadStateMutex(&State.Mutex));
     NkcPut(Log, KeAreApcsDisabled() ? 1 : 0);
@@ -77,8 +79,8 @@ static VOID NkcRun(NKC_LOG *Log)
     ExReleaseFastMutex(&State.Fast);
     NkcPut(Log, KeGetCurrentIrql());
 
-    /* -1, 0, 1, 0: each release reports the state before; after as many
-     * releases as takings it is free and APCs are enabled again. */
+    /* -1, 0, 1, 1: each release reports the state before; after as many
+     * releases as takings it is free. */
     NkcPut(Log, (ULONG)KeReleaseMutex(&State.Mutex, FALSE));
     NkcPut(Log, (ULONG)KeReleaseMutex(&State.Mutex, FALSE));
     NkcPut(Log, (ULONG)KeReadStateMutex(&State.Mutex));
@@ -95,7 +97,8 @@ static VOID NkcRun(NKC_LOG *Log)
      * 1, 0: inside one APCs are disabled, and the IRQL is not raised.
      * 0: the unsafe fast-mutex routines, meant for use inside one, do
      * not raise it either.
-     * 0: outside again, APCs are enabled. */
+     * 1: outside this one, the dispatch routine is still inside the I/O
+     * manager's. */
     KeEnterCriticalRegion();
     NkcPut(Log, KeAreApcsDisabled() ? 1 : 0);
     NkcPut(Log, KeGetCurrentIrql());
