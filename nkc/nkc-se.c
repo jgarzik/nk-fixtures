@@ -6,8 +6,19 @@
  * layouts of a descriptor, absolute and self-relative.
  */
 
+/* The security routines are declared for file systems: <ntifs.h>,
+ * which must come before <ntddk.h>. */
+#include <ntifs.h>
+
 #define NKC_DEVICE L"\\Device\\NkcSe"
 #include "nkc.h"
+
+/* Exported by the kernel and used by Microsoft's device-security
+ * library; declared here in case the kit's headers leave it out. */
+NTKERNELAPI NTSTATUS SeCaptureSecurityDescriptor(PSECURITY_DESCRIPTOR SecurityDescriptor,
+                                                 KPROCESSOR_MODE RequestorMode, POOL_TYPE PoolType,
+                                                 BOOLEAN ForceCapture,
+                                                 PSECURITY_DESCRIPTOR *CapturedSecurityDescriptor);
 
 #define NKC_ACL_ROOM 64
 
