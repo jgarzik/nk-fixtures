@@ -40,6 +40,30 @@
       "optional": ["nkc-irql.pdb"]
     },
     {
+      "id": "nkc-dpc",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-dpc.vcxproj",
+      "required": ["nkc-dpc.sys"],
+      "optional": ["nkc-dpc.pdb"]
+    },
+    {
+      "id": "nkc-timer",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-timer.vcxproj",
+      "required": ["nkc-timer.sys"],
+      "optional": ["nkc-timer.pdb"]
+    },
+    {
+      "id": "nkc-time",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-time.vcxproj",
+      "required": ["nkc-time.sys"],
+      "optional": ["nkc-time.pdb"]
+    },
+    {
       "id": "wdm-cancel",
       "framework": "WDM",
       "solution": "general/cancel/cancel.sln",
