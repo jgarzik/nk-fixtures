@@ -169,7 +169,11 @@ const NKABI_ENTRY NkAbiTable[] = {
     { "const IO_TYPE_IRP", IO_TYPE_IRP },
 
 #if defined(_AMD64_)
-    /* The public KPCR ends where the embedded KPRCB begins. */
+    /*
+     * Only the public head of the KPCR. The header's structure stops short
+     * of the embedded KPRCB, so its size says nothing about where the PRCB
+     * or the current-thread slot are.
+     */
     SZ(KPCR)
     OFF(KPCR, Self)
     OFF(KPCR, CurrentPrcb)
