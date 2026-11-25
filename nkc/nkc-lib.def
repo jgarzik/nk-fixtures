@@ -1,0 +1,18 @@
+; What nkc-lib.sys exports. The linker builds the library's export table
+; from this file; the drivers that import from the library build their
+; import library from it too (lib /def, in their project files).
+;
+; NkcLibByOrdinal has no name in the export table: it can be imported by
+; its ordinal alone. The other ordinals are the linker's to assign.
+; DllInitialize and DllUnload are what the system calls when it loads
+; and unloads an export driver; PRIVATE keeps them out of import libraries.
+
+LIBRARY "nkc-lib.sys"
+EXPORTS
+    NkcLibAdd
+    NkcLibByOrdinal @7 NONAME
+    NkcLibValue DATA
+    NkcLibSetValue
+    NkcLibCounts
+    DllInitialize PRIVATE
+    DllUnload PRIVATE

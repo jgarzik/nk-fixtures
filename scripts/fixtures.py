@@ -254,6 +254,18 @@ def find_outputs(sln_dir, name, arch, configuration):
     return sorted(hits, key=lambda p: (len(p.parts), str(p)))
 
 
+def check_linkage(fx, path, info):
+    """A fixture that exists for what it imports or exports says so under
+    `expect`; a build that links it some other way must not be published."""
+    expect = fx.get("expect", {})
+    for dll, names in expect.get("imports", {}).items():
+        got = info["imports"].get(dll)
+        if got != sorted(names):
+            die(f"{path}: imports from {dll} are {got}, expected {sorted(names)}")
+    if "exports" in expect and pe.export_list(info) != sorted(expect["exports"]):
+        die(f"{path}: exports are {pe.export_list(info)}, expected {sorted(expect['exports'])}")
+
+
 def run_info():
     env = os.environ
     if "GITHUB_RUN_ID" not in env:
@@ -310,6 +322,8 @@ def cmd_collect(args):
                     die(f"{primary}: {e}")
                 if entry["pe"]["machine"] != arch:
                     die(f"{primary}: machine {entry['pe']['machine']}, expected {arch}")
+                if primary.suffix.lower() == ".sys":
+                    check_linkage(fx, primary, entry["pe"])
             if primary.suffix.lower() == ".sys":
                 asset = f"{fx['id']}.{arch}.{primary.name}"
                 shutil.copyfile(primary, out / asset)

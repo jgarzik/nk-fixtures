@@ -1,0 +1,9 @@
+; What nkc-libbad.sys believes nkc-lib.sys exports: one name too many.
+; No library is built from this file. It only makes the import library
+; nkc-libbad links against, so that the driver's import table asks
+; nkc-lib.sys for NkcLibAbsent, which the real nkc-lib.def does not list.
+
+LIBRARY "nkc-lib.sys"
+EXPORTS
+    NkcLibAdd
+    NkcLibAbsent

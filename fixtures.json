@@ -136,6 +136,41 @@
       "optional": ["nkc-seh-fatal.pdb"]
     },
     {
+      "id": "nkc-lib",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-lib.vcxproj",
+      "required": ["nkc-lib.sys"],
+      "optional": ["nkc-lib.pdb"],
+      "expect": {
+        "exports": ["#7", "DllInitialize", "DllUnload", "NkcLibAdd", "NkcLibCounts",
+                    "NkcLibSetValue", "NkcLibValue"]
+      }
+    },
+    {
+      "id": "nkc-libuser",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-libuser.vcxproj",
+      "required": ["nkc-libuser.sys"],
+      "optional": ["nkc-libuser.pdb"],
+      "expect": {
+        "imports": {"nkc-lib.sys": ["#7", "NkcLibAdd", "NkcLibCounts", "NkcLibSetValue",
+                                    "NkcLibValue"]}
+      }
+    },
+    {
+      "id": "nkc-libbad",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-libbad.vcxproj",
+      "required": ["nkc-libbad.sys"],
+      "optional": ["nkc-libbad.pdb"],
+      "expect": {
+        "imports": {"nkc-lib.sys": ["NkcLibAbsent", "NkcLibAdd"]}
+      }
+    },
+    {
       "id": "wdm-cancel",
       "framework": "WDM",
       "solution": "general/cancel/cancel.sln",
