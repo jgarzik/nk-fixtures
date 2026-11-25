@@ -19,7 +19,8 @@
  * both architectures and with any number of processors:
  *   - log facts (an IRQL, a return value, a count), never addresses,
  *     times or anything that depends on scheduling;
- *   - use only documented routines, the way a driver is meant to;
+ *   - use only documented routines, the way a driver is meant to; the
+ *     one exception is the marked set in nkc-undoc.h;
  *   - leave nothing behind: IRQL, locks and allocations as found.
  *
  * This file is NK's, not Microsoft's. It includes only <ntddk.h>.
