@@ -36,6 +36,9 @@ jobs:
           ref: ${{ steps.pin.outputs.commit }}
           path: wds
           persist-credentials: false
+          # Root files plus general/ are all the fixtures need; a full checkout
+          # also trips an upstream .gitattributes encoding error.
+          sparse-checkout: general
 
       - name: Build with the WDK
         run: python scripts/fixtures.py build --arch ${{ matrix.arch }} --wds wds --out dist

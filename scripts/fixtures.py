@@ -64,32 +64,53 @@ def capture(cmd, **kw):
 
 # --- build ------------------------------------------------------------------
 
-def find_vswhere():
+def vswhere(*args):
     base = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
-    p = Path(base) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
-    return p if p.exists() else None
+    exe = Path(base) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
+    if not exe.exists():
+        die(f"vswhere.exe not found at {exe}")
+    return capture([str(exe), "-latest", "-prerelease", "-products", "*", *args]).strip()
 
 
-def find_msbuild():
-    found = shutil.which("msbuild")
-    if found:
-        return found
-    vswhere = find_vswhere()
-    if vswhere:
-        out = capture([str(vswhere), "-latest", "-prerelease", "-products", "*",
-                       "-requires", "Microsoft.Component.MSBuild",
-                       "-find", r"MSBuild\**\Bin\MSBuild.exe"]).split("\n")
-        if out and out[0].strip():
-            return out[0].strip()
-    die("msbuild not found (not on PATH, vswhere found nothing)")
+def find_vs():
+    """Install path and version of a Visual Studio that carries the WDK component."""
+    for component in ("Microsoft.Windows.DriverKit",
+                      "Component.Microsoft.Windows.DriverKit.BuildTools"):
+        path = vswhere("-requires", component, "-property", "installationPath")
+        if path:
+            version = vswhere("-requires", component, "-property", "installationVersion")
+            return Path(path.split("\n")[0].strip()), version.split("\n")[0].strip()
+    die("no Visual Studio installation with the WDK component found")
 
 
-def vs_version():
-    vswhere = find_vswhere()
-    if not vswhere:
-        return None
-    return capture([str(vswhere), "-latest", "-prerelease", "-products", "*",
-                    "-property", "installationVersion"]).strip() or None
+def devshell(vs_path, argv, out, capture_output=False):
+    """Run argv inside the VS Developer Shell, as upstream's BuildEnvironment.ps1 does.
+
+    msbuild alone is not enough: WDK tools such as stampinf.exe are only found
+    with the developer environment loaded. argv goes through a JSON file so no
+    argument needs shell quoting.
+    """
+    dll = vs_path / "Common7" / "Tools" / "Microsoft.VisualStudio.DevShell.dll"
+    if not dll.exists():
+        die(f"VS Developer Shell module not found at {dll}")
+    argfile = out / "devshell-args.json"
+    argfile.write_text(json.dumps([str(a) for a in argv]))
+    script = (
+        f"Import-Module '{dll}'; "
+        f"Enter-VsDevShell -VsInstallPath '{vs_path}' -SkipAutomaticLocation | Out-Null; "
+        f"$a = @(Get-Content -Raw '{argfile}' | ConvertFrom-Json); "
+        "$exe = $a[0]; $rest = @($a | Select-Object -Skip 1); "
+        "& $exe @rest; exit $LASTEXITCODE"
+    )
+    print("+ [devshell]", " ".join(str(a) for a in argv), flush=True)
+    try:
+        r = subprocess.run(["pwsh", "-NoProfile", "-Command", script],
+                           capture_output=capture_output, text=True)
+    finally:
+        argfile.unlink(missing_ok=True)
+    if r.returncode:
+        die(f"{argv[0]} exited with status {r.returncode}")
+    return r.stdout
 
 
 def nuget_packages(wds):
@@ -130,7 +151,7 @@ def cmd_build(args):
 
     run(["nuget", "restore", str(wds / "packages.config"),
          "-PackagesDirectory", str(wds / "packages")])
-    msbuild = find_msbuild()
+    vs_path, vs_ver = find_vs()
     nt, fell_back = pick_nt_target(discover_nt_targets(wds), cfg["nt_target"],
                                    cfg.get("nt_target_fallback"))
     platform = MSBUILD_PLATFORM[args.arch]
@@ -143,15 +164,18 @@ def cmd_build(args):
     }
     for sln in sorted({f["solution"] for f in cfg["fixtures"]}):
         log = logs / (Path(sln).stem + f".{args.arch}.binlog")
-        run([msbuild, str(wds / sln), "-t:Rebuild", "-m", "-noLogo", "-clp:Verbosity=m",
-             f"-binaryLogger:LogFile={log};ProjectImports=None"]
-            + [f"-p:{k}={v}" for k, v in props.items()])
+        devshell(vs_path, ["msbuild", wds / sln, "-t:Rebuild", "-m", "-noLogo",
+                           "-clp:Verbosity=m",
+                           f"-binaryLogger:LogFile={log};ProjectImports=None"]
+                 + [f"-p:{k}={v}" for k, v in props.items()], out)
 
+    msbuild_ver = devshell(vs_path, ["msbuild", "-version", "-noLogo"], out,
+                           capture_output=True).strip().split("\n")[-1]
     info = {
         "arch": args.arch,
         "msbuild_properties": props,
-        "msbuild_version": capture([msbuild, "-version", "-noLogo"]).strip().split("\n")[-1],
-        "visual_studio_version": vs_version(),
+        "msbuild_version": msbuild_ver,
+        "visual_studio_version": vs_ver,
         "nuget_packages": nuget_packages(wds),
         "nt_target": {"requested": str(cfg["nt_target"]), "used": str(nt["Tag"]),
                       "version": nt["Version"], "code": nt["Code"], "fell_back": fell_back},
