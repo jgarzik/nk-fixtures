@@ -26,7 +26,7 @@ import pe  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 MSBUILD_PLATFORM = {"x64": "x64", "arm64": "ARM64"}
-# Layout of the table in abi-probe/probe.c: an 88-byte name, a 64-bit value.
+# Layout of a table in abi-probe/ (probe.h): an 88-byte name, a 64-bit value.
 ABI_NAME_LEN, ABI_ENTRY_LEN = 88, 96
 ABI_BEGIN, ABI_END = b"NKABI-BEGIN v1\0", "NKABI-END"
 ZIP_EPOCH = (1980, 1, 1, 0, 0, 0)
@@ -203,26 +203,44 @@ def cmd_build(args):
 def abi_table(image):
     """The (name, value) facts the ABI probe's compiler recorded in `image`.
 
-    The table is found by its begin marker and read until its end marker, so
-    this works on the raw file without knowing section layout. Returns None
-    if the image holds no table; raises ValueError if the table is damaged.
+    Each source file of the probe keeps one table. A table is found by its
+    begin marker and read until its end marker, so this works on the raw
+    file without knowing section layout. The facts of every table are
+    returned as one list, in file order, after a single marker entry.
+    Returns None if the image holds no table; raises ValueError if a table
+    is damaged, if two tables disagree about the pointer size, or if a
+    fact is recorded twice.
     """
-    start = image.find(ABI_BEGIN)
+    facts, start = [], image.find(ABI_BEGIN)
     if start < 0:
         return None
-    facts, off = [], start
-    while True:
-        entry = image[off:off + ABI_ENTRY_LEN]
-        if len(entry) < ABI_ENTRY_LEN:
-            raise ValueError("ABI table runs off the end of the image")
-        raw, value = entry[:ABI_NAME_LEN], int.from_bytes(entry[ABI_NAME_LEN:], "little")
-        if b"\0" not in raw:
-            raise ValueError("ABI table entry name is not terminated")
-        name = raw.split(b"\0", 1)[0].decode("ascii")
-        if name == ABI_END:
-            return facts
-        facts.append((name, value))
-        off += ABI_ENTRY_LEN
+    while start >= 0:
+        off, table = start, []
+        while True:
+            entry = image[off:off + ABI_ENTRY_LEN]
+            if len(entry) < ABI_ENTRY_LEN:
+                raise ValueError("ABI table runs off the end of the image")
+            raw, value = entry[:ABI_NAME_LEN], int.from_bytes(entry[ABI_NAME_LEN:], "little")
+            if b"\0" not in raw:
+                raise ValueError("ABI table entry name is not terminated")
+            name = raw.split(b"\0", 1)[0].decode("ascii")
+            off += ABI_ENTRY_LEN
+            if name == ABI_END:
+                break
+            table.append((name, value))
+        if not facts:
+            facts = table
+        elif table[0] != facts[0]:
+            raise ValueError("ABI tables disagree about the pointer size")
+        else:
+            facts += table[1:]
+        start = image.find(ABI_BEGIN, off)
+    names = [name for name, _ in facts]
+    if len(names) != len(set(names)):
+        raise ValueError("ABI fact recorded twice: "
+                         + sorted(n for n in set(names) if names.count(n) > 1)[0])
+    return facts
+
 
 def find_outputs(sln_dir, name, arch, configuration):
     """All build outputs called `name` for this arch/configuration, shortest path first."""

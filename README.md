@@ -26,13 +26,19 @@ Each is built `Release` for `x64` and `arm64`.
 
 ### The ABI probe
 
-`abi-probe/probe.c` is the one source file here that is not Microsoft's.
-It includes only `<ntddk.h>` and declares a table of `sizeof` and
-`FIELD_OFFSET` values for driver-visible structures (`DEVICE_OBJECT`,
-`IRP`, `MDL`, ...). The WDK compiles it like any driver, so the numbers
-are what Microsoft's compiler and headers produce for the pinned target.
-The pipeline reads the table back out of the built image and publishes it
-as `abi-probe.<arch>.txt`, one fact per line:
+The sources in `abi-probe/` are NK's, not Microsoft's. Each declares a
+table of `sizeof` and `FIELD_OFFSET` values for driver-visible structures,
+and of constants a kernel must agree on. The WDK compiles them like any
+driver, so the numbers are what Microsoft's compiler and headers produce
+for the pinned target, on each architecture.
+
+| File | Includes | Records |
+| --- | --- | --- |
+| `probe.c` | `<ntifs.h>` | I/O (`DEVICE_OBJECT`, `IRP`, `MDL`, ...), security, the registry's query structures, `EXCEPTION_RECORD`, every field of `CONTEXT`, `ERESOURCE`, lookaside lists, `ACCESS_STATE`, ... |
+| `probe-unwind.c` | `<windef.h>` | what the unwinder shares with a driver's language handler: `DISPATCHER_CONTEXT`, `SCOPE_TABLE`, `RUNTIME_FUNCTION`, `UNWIND_HISTORY_TABLE`. The kernel headers do not define these; `<winnt.h>` does, and cannot be included next to `<ntifs.h>` |
+
+The pipeline reads every table back out of the built image and publishes
+them as one file, `abi-probe.<arch>.txt`, one fact per line:
 
 ```
 sizeof DEVICE_OBJECT 336

@@ -84,6 +84,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="probe.c" />
+    <!-- <winnt.h> is a user-mode header: a kernel-mode project's include
+         path leaves that directory out. -->
+    <ClCompile Include="probe-unwind.c">
+      <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="probe.h" />
   </ItemGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" Condition="'$(ConfigurationType)'=='Driver'" />

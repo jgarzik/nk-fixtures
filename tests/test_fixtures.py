@@ -104,16 +104,42 @@ class AbiTableTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             fixtures.abi_table(abi_blob(self.FACTS, terminate=False))
 
+    def test_every_table_in_the_image_is_read(self):
+        second = [("sizeof DISPATCHER_CONTEXT", 80)]
+        got = fixtures.abi_table(abi_blob(self.FACTS) + abi_blob(second))
+        self.assertEqual(got, [("NKABI-BEGIN v1", 8)] + self.FACTS + second)
+
+    def test_a_fact_recorded_twice_is_an_error(self):
+        with self.assertRaisesRegex(ValueError, "twice: sizeof DEVICE_OBJECT"):
+            fixtures.abi_table(abi_blob(self.FACTS) + abi_blob(self.FACTS[:1]))
+
+    def test_a_damaged_second_table_is_an_error(self):
+        with self.assertRaises(ValueError):
+            fixtures.abi_table(abi_blob(self.FACTS) + abi_blob(self.FACTS, terminate=False))
+
     def test_probe_names_fit_the_table(self):
-        """Every fact name in probe.c must fit, or MSVC rejects the build."""
+        """Every fact name in the probe must fit, or MSVC rejects the build."""
         import re
-        src = (ROOT / "abi-probe" / "probe.c").read_text()
-        limit = int(re.search(r"#define NKABI_NAME_LEN (\d+)", src).group(1))
+        probe = ROOT / "abi-probe"
+        limit = int(re.search(r"#define NKABI_NAME_LEN (\d+)",
+                              (probe / "probe.h").read_text()).group(1))
         self.assertEqual(limit, fixtures.ABI_NAME_LEN)
-        names = [f"sizeof {m}" for m in re.findall(r"^\s*SZ\((\w+)\)", src, re.M)]
-        names += [f"offsetof {a} {b}" for a, b in re.findall(r"^\s*OFF\((\w+), ([\w.]+)\)", src, re.M)]
-        names += re.findall(r'^\s*\{ "([^"]+)"', src, re.M)
-        self.assertGreater(len(names), 100)
+        sources = sorted(probe.glob("*.c"))
+        self.assertEqual([p.name for p in sources], ["probe-unwind.c", "probe.c"])
+        project = (probe / "abi-probe.vcxproj").read_text()
+        names = []
+        for path in sources:
+            self.assertIn(f'<ClCompile Include="{path.name}"', project)
+            src = path.read_text()
+            names += [f"sizeof {m}" for m in re.findall(r"^\s*SZ\((\w+)\)", src, re.M)]
+            names += [f"offsetof {a} {b}"
+                      for a, b in re.findall(r"^\s*OFF\((\w+), ([\w.\[\]]+)\)", src, re.M)]
+            names += re.findall(r'^\s*\{ "([^"]+)"', src, re.M)
+            # Nothing that looks like a fact may escape the patterns above.
+            self.assertEqual(len(re.findall(r"^\s*(?:SZ|OFF)\(", src, re.M)),
+                             len(re.findall(r"^\s*(?:SZ\(\w+\)|OFF\(\w+, [\w.\[\]]+\))$",
+                                            src, re.M)), path.name)
+        self.assertGreater(len(names), 500)
         self.assertEqual(len(names), len(set(names)), "duplicate fact name")
         for n in names:
             self.assertLess(len(n), limit, n)
