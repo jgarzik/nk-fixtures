@@ -27,8 +27,11 @@
  * initialised and its list routines.
  */
 
-/* ExTryToAcquireResourceExclusiveLite is declared for file systems. */
+/* ExTryToAcquireResourceExclusiveLite is declared for file systems. The
+ * pool routines here are the ones Microsoft's drivers of this Windows
+ * import; a newer kit's advice to use others is not wanted. */
 #include <ntifs.h>
+#pragma warning(disable : 4996)
 
 #define NKC_DEVICE L"\\Device\\NkcEx"
 #define NKC_THREADS
@@ -470,12 +473,12 @@ static VOID NkcLookaside(NKC_LOG *Log)
     ExDeletePagedLookasideList(&NkcPaged);
     NkcPut(Log, ExQueryDepthSList(&NkcPaged.L.ListHead));
 
-    /* 1, the tag, 0x11, 4, 256: a paged list of one-byte blocks, with a
+    /* 24, the tag, 0x11, 4, 256: a paged list of 24-byte blocks, with a
      * pool flag (POOL_RAISE_IF_ALLOCATION_FAILURE) and a Depth argument
-     * of 100: the size is kept as given (a guess), the flag joins the
-     * type, the argument is ignored. */
+     * of 100: the size is kept as given, not rounded up (a guess), the
+     * flag joins the type, the argument is ignored. */
     RtlFillMemory(&NkcPaged, sizeof(NkcPaged), 0xEE);
-    ExInitializePagedLookasideList(&NkcPaged, NULL, NULL, POOL_RAISE_IF_ALLOCATION_FAILURE, 1,
+    ExInitializePagedLookasideList(&NkcPaged, NULL, NULL, POOL_RAISE_IF_ALLOCATION_FAILURE, 24,
                                    NKC_LOOK_TAG, 100);
     NkcLookFields(Log, &NkcPaged.L);
     ExDeletePagedLookasideList(&NkcPaged);
@@ -767,7 +770,7 @@ static VOID NkcTimerCallback(PEX_TIMER Timer, PVOID Context)
 {
     InterlockedExchange(&NkcTimerIrql, (LONG)KeGetCurrentIrql());
     InterlockedExchange(&NkcTimerContext,
-                        Timer == NkcTimerExpected && Context == &NkcTimerCalls ? 1 : 0);
+                        Timer == NkcTimerExpected && Context == (PVOID)&NkcTimerCalls ? 1 : 0);
     InterlockedIncrement(&NkcTimerCalls);
 }
 
