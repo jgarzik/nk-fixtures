@@ -39,6 +39,8 @@ or times; documented routines only, with the one exception marked in
 `nkc/nkc-undoc.h`; nothing left behind. Each driver creates one device,
 `\Device\<name>`, and answers device-control code `0x222000` with its
 list; what every value means is written next to the line that logs it.
+A driver with more lists than one answers `0x222004` and on with the
+others; the table says which.
 
 The fixture id is the driver's name: `nkc-irql` is `nkc-irql.sys`.
 
@@ -53,8 +55,13 @@ The fixture id is the driver's name: `nkc-irql` is `nkc-irql.sys`.
 | `nkc-waitn` | `NkcWaitN` | waiting on several objects at once |
 | `nkc-mutex` | `NkcMutex` | mutexes, fast mutexes and critical regions |
 | `nkc-work` | `NkcWork` | work items |
-| `nkc-se` | `NkcSe` | security descriptors |
-| `nkc-reg` | `NkcReg` | the registry, as a driver uses it |
+| `nkc-se` | `NkcSe` | security descriptors; on a system thread, as the System process's token: the access check case by case, privilege checks, the access state of an open, the descriptor of a new object (`SeAssignSecurity`), reading and changing a descriptor's parts; a second list (`0x222004`) for tokens: what the `Se` and `Zw` routines say of the System token, duplicates, and impersonation on a thread made for it |
+| `nkc-reg` | `NkcReg` | the registry, as a driver uses it: keys and values made, read, enumerated and deleted, every information class with room and without, and the query tables of `RtlQueryRegistryValues` and `RtlQueryRegistryValuesEx` |
+| `nkc-ex` | `NkcEx` | the executive: push locks, sequenced singly linked lists, lookaside lists, executive resources (`ERESOURCE`), executive timers, `ExUuidCreate`, pool allocation with a priority or a quota charge; second threads where waiting has to be seen |
+| `nkc-rtl` | `NkcRtl` | the run-time library: the C string routines the kernel exports, `_vsnwprintf`, counted strings and the ANSI code page, SIDs, access lists and descriptors, app-container SIDs, the Unicode prefix table, `FsRtlIsNameInExpression`, the table of characters legal in file names. Its other device-control codes (listed at the top of the source) return whole tables as raw data: every character's capital (`0x222800` to `0x22283C`), the code page to Unicode (`0x222840`) and back (`0x222880` to `0x2228BC`) |
+| `nkc-etw` | `NkcEtw` | trace providers with nobody listening: ETW registration and writes, WMI registration of a device and the `IRP_MJ_SYSTEM_CONTROL` requests it brings, a WMI event, bugcheck-reason callbacks, `ZwQuerySystemInformation`; a second list (`0x222004`) for the routines a WPP-traced driver looks up by name |
+| `nkc-ob` | `NkcOb` | objects: what the reference routines return, referencing through a handle (wrong type, no handle, more access than the handle has, a kernel handle for user mode); a second list (`0x222004`) for the kernel's store of security descriptors |
+| `nkc-ps` | `NkcPs` | the System process and its threads: ids, sessions, attaching to the current process, waits and alerts through handles, thread priority through a handle, quota; a second list (`0x222004`) for the host silo: slots, contexts and silo monitors on a system with no container |
 | `nkc-seh` | `NkcSeh` | structured exception handling: the order of filters, `__finally` blocks and handlers, what a filter is shown, unwinding, the kernel's raising routines, probes, memory faults a `__try` catches |
 | `nkc-seh-fatal` | `NkcSehFatal` | nothing by its list, which is empty: each of its other device-control codes (`0x222400` to `0x222410`, listed at the top of the source) does one thing Windows answers with a bugcheck |
 | `nkc-cross` | `NkcCross` | an exception that crosses the kernel: raised in another driver's dispatch routine, or in this driver's completion routine, with a `__try` around the `IoCallDriver` that led there; the order of filters, `__finally` blocks and the handler on both sides. Needs `nkc-cross-b` loaded first. Its device-control code `0x222440` has a DPC routine raise over a `__try`, which may stop the system |
@@ -111,17 +118,18 @@ runner turns it into a real hive, `system.hiv`
 4. the hive is saved in the latest hive format (`RegSaveKeyExW`,
    `REG_LATEST_FORMAT`) and unloaded.
 
-So the content is NK's and the container is written by Microsoft's
-registry: its cells, lists, hashes, security records and checksum are
-what Windows produces. The content: `Select`; under `ControlSet001`,
-`Control\ServiceGroupOrder`, an empty `Control\Class`, `Services` keys
-for `Null`, `Npfs`, `msrpc`, `wmilib` and `wpprecorder`; and
-`Control\NkTest`, which exercises the format (every common value type,
-values of 0 to 5 bytes, values past 16344 bytes that need big-data
-cells, names that are and are not Latin-1, a key with a class, 1200
-subkeys of one key). The service values are written from memory of a
-stock Windows 10 installation, not confirmed against one; the manifest
-says so line by line.
+So the container is written by Microsoft's registry: its cells, lists,
+hashes, security records and checksum are what Windows produces. The
+content has two parts. What a kernel reads at boot is copied from an
+installation of Windows 10: `Select`; under `ControlSet001`,
+`Control\ServiceGroupOrder` and `Control\GroupOrderList` in full, an
+empty `Control\Class`, and the `Services` keys of `Null`, `Npfs`, `Msfs`
+and `msrpc` with the values Windows gives them (none has an
+`ImagePath`). `Control\NkTest` is NK's and exercises the format: every
+common value type, values of 0 to 5 bytes, values past 16344 bytes that
+need big-data cells, names that are and are not Latin-1, a key with a
+class, 1200 subkeys of one key. The manifest says for each key where it
+comes from and what of Windows' key it leaves out.
 
 `reg.exe` is not used: it cannot set a key's class, and a value larger
 than a command line cannot be passed to it.

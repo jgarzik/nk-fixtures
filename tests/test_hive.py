@@ -151,20 +151,63 @@ class SystemHiveTests(unittest.TestCase):
 
     def test_boot_content(self):
         select = self.values("Select")
-        self.assertEqual({n: v.data for n, v in select.items()},
-                         {n: b"\x01\0\0\0" for n in ("Current", "Default", "LastKnownGood")})
+        self.assertEqual({n: (v.type, v.data) for n, v in select.items()},
+                         {"Current": (4, b"\x01\0\0\0"), "Default": (4, b"\x01\0\0\0"),
+                          "Failed": (4, b"\0\0\0\0"), "LastKnownGood": (4, b"\x01\0\0\0")})
+        self.assertEqual(self.keys["ControlSet001\\Control\\Class"].values, [])
+
+    def group_order(self):
         groups = self.values("ControlSet001\\Control\\ServiceGroupOrder")["List"]
         self.assertEqual(groups.type, 7)
-        order = groups.data.decode("utf-16-le").split("\0")[:-2]
-        self.assertEqual(order[-2:], ["Base", "File System"])
-        self.assertEqual(self.keys["ControlSet001\\Control\\Class"].values, [])
-        for name in ("Null", "Npfs", "msrpc", "wmilib", "wpprecorder"):
-            service = self.values(f"ControlSet001\\Services\\{name}")
-            self.assertEqual([service[n].type for n in ("Type", "Start", "ErrorControl")],
-                             [4, 4, 4], name)
-            self.assertEqual(service["ImagePath"].type, 2, name)
-            if "Group" in service:
-                self.assertIn(service["Group"].data.decode("utf-16-le").rstrip("\0"), order)
+        return groups.data.decode("utf-16-le").split("\0")[:-2]
+
+    def test_group_order(self):
+        order = self.group_order()
+        self.assertEqual(len(order), 70)
+        self.assertEqual(len({g.lower() for g in order}), 70)
+        self.assertEqual(order[:4],
+                         ["System Reserved", "EMS", "WdfLoadGroup", "Boot Bus Extender"])
+        self.assertEqual(order[-1], "MS Transactions")
+        self.assertEqual(order.index("Base"), order.index("Boot File System") + 1)
+        self.assertEqual(order.index("File System"), order.index("Video Save") + 1)
+
+    def test_tag_order(self):
+        tags = self.values("ControlSet001\\Control\\GroupOrderList")
+        self.assertEqual(len(tags), 49)
+        for name, value in tags.items():
+            # A count, then that many tags, none twice.
+            self.assertEqual(value.type, 3, name)
+            words = struct.unpack(f"<{len(value.data) // 4}I", value.data)
+            self.assertEqual(len(value.data), 4 * (1 + words[0]), name)
+            self.assertEqual(len(set(words[1:])), words[0], name)
+        base = struct.unpack("<17I", tags["Base"].data)
+        self.assertEqual(base[:2], (16, 0x0E))
+
+    def test_services(self):
+        services = {p.split("\\")[2] for p in self.keys
+                    if p.startswith("ControlSet001\\Services\\")}
+        self.assertEqual(services, {"Null", "Npfs", "Msfs", "msrpc"})
+        want = {
+            "Null": {"Type": 1, "Start": 1, "ErrorControl": 1, "Tag": 1, "Group": "Base"},
+            "Npfs": {"Type": 2, "Start": 1, "ErrorControl": 1, "Group": "File system"},
+            "Msfs": {"Type": 2, "Start": 1, "ErrorControl": 1, "Group": "File system"},
+            "msrpc": {"Type": 1, "Start": 3, "ErrorControl": 1, "Tag": 1},
+        }
+        order = [g.lower() for g in self.group_order()]
+        for name, expected in want.items():
+            got = {}
+            for value_name, value in self.values(f"ControlSet001\\Services\\{name}").items():
+                if value.type == 4:
+                    got[value_name] = struct.unpack("<I", value.data)[0]
+                else:
+                    self.assertEqual(value.type, 1, (name, value_name))
+                    got[value_name] = value.data.decode("utf-16-le").rstrip("\0")
+            # No ImagePath, no DependOnService: nothing but these.
+            self.assertEqual(got, expected, name)
+            if "Group" in got:
+                # Groups are matched without regard to case.
+                self.assertIn(got["Group"].lower(), order, name)
+        self.assertEqual(self.keys["ControlSet001\\Services\\Npfs\\Aliases"].values, [])
 
     def test_format_exercise(self):
         test = "ControlSet001\\Control\\NkTest"
