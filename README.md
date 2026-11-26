@@ -39,6 +39,8 @@ or times; documented routines only, with the one exception marked in
 `nkc/nkc-undoc.h`; nothing left behind. Each driver creates one device,
 `\Device\<name>`, and answers device-control code `0x222000` with its
 list; what every value means is written next to the line that logs it.
+A driver with more lists than one answers `0x222004` and on with the
+others; the table says which.
 
 The fixture id is the driver's name: `nkc-irql` is `nkc-irql.sys`.
 
@@ -54,6 +56,7 @@ The fixture id is the driver's name: `nkc-irql` is `nkc-irql.sys`.
 | `nkc-mutex` | `NkcMutex` | mutexes, fast mutexes and critical regions |
 | `nkc-work` | `NkcWork` | work items |
 | `nkc-se` | `NkcSe` | security descriptors |
+| `nkc-etw` | `NkcEtw` | trace providers with nobody listening: ETW registration and writes, WMI registration of a device and the `IRP_MJ_SYSTEM_CONTROL` requests it brings, a WMI event, bugcheck-reason callbacks, `ZwQuerySystemInformation`; a second list (`0x222004`) for the routines a WPP-traced driver looks up by name |
 | `nkc-reg` | `NkcReg` | the registry, as a driver uses it |
 | `nkc-seh` | `NkcSeh` | structured exception handling: the order of filters, `__finally` blocks and handlers, what a filter is shown, unwinding, the kernel's raising routines, probes, memory faults a `__try` catches |
 | `nkc-seh-fatal` | `NkcSehFatal` | nothing by its list, which is empty: each of its other device-control codes (`0x222400` to `0x222410`, listed at the top of the source) does one thing Windows answers with a bugcheck |

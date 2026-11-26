@@ -119,6 +119,14 @@
       "optional": ["nkc-se.pdb"]
     },
     {
+      "id": "nkc-etw",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-etw.vcxproj",
+      "required": ["nkc-etw.sys"],
+      "optional": ["nkc-etw.pdb"]
+    },
+    {
       "id": "nkc-reg",
       "framework": "WDM",
       "local": "nkc",

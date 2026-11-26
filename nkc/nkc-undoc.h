@@ -31,9 +31,50 @@
  *                           runs the __finally blocks a goto or a return
  *                           leaves a __try through; used by nkc-seh
  *
- * 2. Routines a driver calls by name. Prototypes follow.
+ * 2. Routines a driver calls by name. Prototypes follow, each with its
+ *    entry.
  *
- *    (none)
+ * 3. Exports the kit's headers put a macro over. A driver that uses the
+ *    kit's name calls some other routine and never the export, which
+ *    Microsoft's own drivers import. The macro is taken off and the
+ *    export declared.
+ *
+ * 4. Routines a driver that ships in Windows does not import but looks
+ *    up by name at run time, with MmGetSystemRoutineAddress; a kernel
+ *    that runs it is asked for them all the same. Only the type of the
+ *    pointer is given: a conformance driver looks them up as well.
  */
 
 #pragma once
+
+/*
+ * 2. Called by name.
+ */
+
+/* imported by wpprecorder.sys (and, as NtQuerySystemInformation, by
+ * msrpc.sys); used by nkc-etw. The class is a number: the kit's kernel
+ * headers do not define SYSTEM_INFORMATION_CLASS. */
+NTSYSAPI NTSTATUS NTAPI ZwQuerySystemInformation(ULONG SystemInformationClass,
+                                                 PVOID SystemInformation,
+                                                 ULONG SystemInformationLength,
+                                                 PULONG ReturnLength);
+
+/*
+ * 4. Looked up by name.
+ */
+
+/* looked up by wpprecorder.sys, and by the tracing start-up the kit
+ * compiles into every driver that traces with WPP; used by nkc-etw.
+ * A registration made with it is ended with EtwUnregister. */
+typedef VOID NTAPI NKC_ETW_CLASSIC_CALLBACK(LPCGUID Guid, UCHAR ControlCode, PVOID EnableContext,
+                                            PVOID CallbackContext);
+typedef NTSTATUS NTAPI NKC_ETW_REGISTER_CLASSIC_PROVIDER(LPCGUID ProviderGuid, ULONG Type,
+                                                         NKC_ETW_CLASSIC_CALLBACK *EnableCallback,
+                                                         PVOID CallbackContext,
+                                                         PREGHANDLE RegHandle);
+
+/* looked up by wpprecorder.sys; it is what the kit's auxiliary library
+ * (AuxKlibQueryModuleInformation) calls; used by nkc-etw. */
+typedef NTSTATUS NTAPI NKC_RTL_QUERY_MODULE_INFORMATION(PULONG InformationLength,
+                                                        ULONG SizePerModule,
+                                                        PVOID InformationBuffer);
