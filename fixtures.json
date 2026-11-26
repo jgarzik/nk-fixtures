@@ -135,6 +135,14 @@
       "optional": ["nkc-ob.pdb"]
     },
     {
+      "id": "nkc-ps",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-ps.vcxproj",
+      "required": ["nkc-ps.sys"],
+      "optional": ["nkc-ps.pdb"]
+    },
+    {
       "id": "nkc-reg",
       "framework": "WDM",
       "local": "nkc",

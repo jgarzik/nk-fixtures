@@ -71,6 +71,23 @@ NTKERNELAPI VOID NTAPI ObReferenceSecurityDescriptor(PSECURITY_DESCRIPTOR Securi
 NTKERNELAPI VOID NTAPI ObDereferenceSecurityDescriptor(PSECURITY_DESCRIPTOR SecurityDescriptor,
                                                        ULONG Count);
 
+/* imported by npfs.sys and msfs.sys; used by nkc-ps. */
+NTKERNELAPI ULONG NTAPI PsGetProcessSessionId(PEPROCESS Process);
+NTKERNELAPI ULONG NTAPI PsGetThreadSessionId(PETHREAD Thread);
+
+/* imported by msfs.sys; used by nkc-ps. */
+NTKERNELAPI NTSTATUS NTAPI PsChargeProcessPagedPoolQuota(PEPROCESS Process, SIZE_T Amount);
+NTKERNELAPI VOID NTAPI PsReturnProcessPagedPoolQuota(PEPROCESS Process, SIZE_T Amount);
+
+/*
+ * 3. Behind a macro.
+ */
+
+/* imported by npfs.sys, msfs.sys; used by nkc-ps. The kit's
+ * PsGetCurrentProcess is IoGetCurrentProcess. */
+#undef PsGetCurrentProcess
+NTKERNELAPI PEPROCESS NTAPI PsGetCurrentProcess(VOID);
+
 /*
  * 4. Looked up by name.
  */
