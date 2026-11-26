@@ -57,6 +57,7 @@ The fixture id is the driver's name: `nkc-irql` is `nkc-irql.sys`.
 | `nkc-work` | `NkcWork` | work items |
 | `nkc-se` | `NkcSe` | security descriptors |
 | `nkc-etw` | `NkcEtw` | trace providers with nobody listening: ETW registration and writes, WMI registration of a device and the `IRP_MJ_SYSTEM_CONTROL` requests it brings, a WMI event, bugcheck-reason callbacks, `ZwQuerySystemInformation`; a second list (`0x222004`) for the routines a WPP-traced driver looks up by name |
+| `nkc-ob` | `NkcOb` | objects: what the reference routines return, referencing through a handle (wrong type, no handle, more access than the handle has, a kernel handle for user mode); a second list (`0x222004`) for the kernel's store of security descriptors |
 | `nkc-reg` | `NkcReg` | the registry, as a driver uses it |
 | `nkc-seh` | `NkcSeh` | structured exception handling: the order of filters, `__finally` blocks and handlers, what a filter is shown, unwinding, the kernel's raising routines, probes, memory faults a `__try` catches |
 | `nkc-seh-fatal` | `NkcSehFatal` | nothing by its list, which is empty: each of its other device-control codes (`0x222400` to `0x222410`, listed at the top of the source) does one thing Windows answers with a bugcheck |

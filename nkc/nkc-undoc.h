@@ -59,6 +59,18 @@ NTSYSAPI NTSTATUS NTAPI ZwQuerySystemInformation(ULONG SystemInformationClass,
                                                  ULONG SystemInformationLength,
                                                  PULONG ReturnLength);
 
+/* imported by npfs.sys and msfs.sys; used by nkc-ob. The kernel's shared
+ * store of security descriptors: one is logged and a counted copy comes
+ * back, the same copy for the same bytes. The descriptor logged is
+ * self-relative. */
+NTKERNELAPI NTSTATUS NTAPI ObLogSecurityDescriptor(PSECURITY_DESCRIPTOR InputSecurityDescriptor,
+                                                   PSECURITY_DESCRIPTOR *OutputSecurityDescriptor,
+                                                   ULONG RefBias);
+NTKERNELAPI VOID NTAPI ObReferenceSecurityDescriptor(PSECURITY_DESCRIPTOR SecurityDescriptor,
+                                                     ULONG Count);
+NTKERNELAPI VOID NTAPI ObDereferenceSecurityDescriptor(PSECURITY_DESCRIPTOR SecurityDescriptor,
+                                                       ULONG Count);
+
 /*
  * 4. Looked up by name.
  */
