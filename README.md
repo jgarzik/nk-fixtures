@@ -54,7 +54,7 @@ The fixture id is the driver's name: `nkc-irql` is `nkc-irql.sys`.
 | `nkc-mutex` | `NkcMutex` | mutexes, fast mutexes and critical regions |
 | `nkc-work` | `NkcWork` | work items |
 | `nkc-se` | `NkcSe` | security descriptors |
-| `nkc-reg` | `NkcReg` | the registry, as a driver uses it |
+| `nkc-reg` | `NkcReg` | the registry, as a driver uses it: keys and values made, read, enumerated and deleted, every information class with room and without, and the query tables of `RtlQueryRegistryValues` and `RtlQueryRegistryValuesEx` |
 | `nkc-ex` | `NkcEx` | the executive: push locks, sequenced singly linked lists, lookaside lists, executive resources (`ERESOURCE`), executive timers, `ExUuidCreate`, pool allocation with a priority or a quota charge; second threads where waiting has to be seen |
 | `nkc-rtl` | `NkcRtl` | the run-time library: the C string routines the kernel exports, `_vsnwprintf`, counted strings and the ANSI code page, SIDs, access lists and descriptors, app-container SIDs, the Unicode prefix table, `FsRtlIsNameInExpression`, the table of characters legal in file names. Its other device-control codes (listed at the top of the source) return whole tables as raw data: every character's capital (`0x222800` to `0x22283C`), the code page to Unicode (`0x222840`) and back (`0x222880` to `0x2228BC`) |
 | `nkc-seh` | `NkcSeh` | structured exception handling: the order of filters, `__finally` blocks and handlers, what a filter is shown, unwinding, the kernel's raising routines, probes, memory faults a `__try` catches |
