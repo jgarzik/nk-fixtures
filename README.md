@@ -55,6 +55,7 @@ The fixture id is the driver's name: `nkc-irql` is `nkc-irql.sys`.
 | `nkc-work` | `NkcWork` | work items |
 | `nkc-se` | `NkcSe` | security descriptors |
 | `nkc-reg` | `NkcReg` | the registry, as a driver uses it |
+| `nkc-ex` | `NkcEx` | the executive: push locks, sequenced singly linked lists, lookaside lists, executive resources (`ERESOURCE`), executive timers, `ExUuidCreate`, pool allocation with a priority or a quota charge; second threads where waiting has to be seen |
 | `nkc-seh` | `NkcSeh` | structured exception handling: the order of filters, `__finally` blocks and handlers, what a filter is shown, unwinding, the kernel's raising routines, probes, memory faults a `__try` catches |
 | `nkc-seh-fatal` | `NkcSehFatal` | nothing by its list, which is empty: each of its other device-control codes (`0x222400` to `0x222410`, listed at the top of the source) does one thing Windows answers with a bugcheck |
 | `nkc-cross` | `NkcCross` | an exception that crosses the kernel: raised in another driver's dispatch routine, or in this driver's completion routine, with a `__try` around the `IoCallDriver` that led there; the order of filters, `__finally` blocks and the handler on both sides. Needs `nkc-cross-b` loaded first. Its device-control code `0x222440` has a DPC routine raise over a `__try`, which may stop the system |

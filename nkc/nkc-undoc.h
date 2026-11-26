@@ -26,14 +26,39 @@
  *    __C_specific_handler   imported by npfs.sys, msfs.sys, msrpc.sys
  *                           the language handler of every function with
  *                           a __try; used by nkc-seh, nkc-seh-fatal,
- *                           nkc-cross, nkc-cross-b
+ *                           nkc-cross, nkc-cross-b, nkc-ex
  *    _local_unwind          imported by cng.sys, ntfs.sys, fastfat.sys
  *                           runs the __finally blocks a goto or a return
  *                           leaves a __try through; used by nkc-seh
  *
  * 2. Routines a driver calls by name. Prototypes follow.
  *
- *    (none)
+ *    Push locks. The lock is one pointer-sized word in the driver's
+ *    memory, zero when free; the caller is in a critical region; Flags
+ *    is 0 (EX_DEFAULT_PUSH_LOCK_FLAGS).
+ *
+ *    ExAcquirePushLockExclusiveEx     imported by npfs.sys, msrpc.sys
+ *    ExAcquirePushLockSharedEx        imported by npfs.sys, msfs.sys
+ *    ExReleasePushLockExclusiveEx     imported by npfs.sys, msrpc.sys
+ *    ExReleasePushLockSharedEx        imported by npfs.sys, msfs.sys
+ *    ExTryAcquirePushLockExclusiveEx  imported by npfs.sys
+ *    ExReleasePushLockEx              imported by msrpc.sys
+ *                                     all six used by nkc-ex
+ *
+ *    A kit that knows push locks defines EX_DEFAULT_PUSH_LOCK_FLAGS in
+ *    <wdm.h> and declares the first four there; they are then used
+ *    through it. The last two are declared here either way, the lock
+ *    typed as the kit types it (a pointer-sized integer), so that a kit
+ *    which declares them too sees the same declaration twice.
  */
 
 #pragma once
+
+#ifndef EX_DEFAULT_PUSH_LOCK_FLAGS
+NTKERNELAPI VOID FASTCALL ExAcquirePushLockExclusiveEx(PULONG_PTR PushLock, ULONG Flags);
+NTKERNELAPI VOID FASTCALL ExAcquirePushLockSharedEx(PULONG_PTR PushLock, ULONG Flags);
+NTKERNELAPI VOID FASTCALL ExReleasePushLockExclusiveEx(PULONG_PTR PushLock, ULONG Flags);
+NTKERNELAPI VOID FASTCALL ExReleasePushLockSharedEx(PULONG_PTR PushLock, ULONG Flags);
+#endif
+NTKERNELAPI BOOLEAN FASTCALL ExTryAcquirePushLockExclusiveEx(PULONG_PTR PushLock, ULONG Flags);
+NTKERNELAPI VOID FASTCALL ExReleasePushLockEx(PULONG_PTR PushLock, ULONG Flags);
