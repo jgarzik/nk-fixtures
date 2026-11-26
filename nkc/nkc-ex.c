@@ -483,12 +483,15 @@ static VOID NkcLookaside(NKC_LOG *Log)
     NkcLookFields(Log, &NkcPaged.L);
     ExDeletePagedLookasideList(&NkcPaged);
 
-    /* 48, the tag, 0 (NonPagedPool), 4, 256; 0, 0, 0, 0, 0: a non-paged
-     * list with routines of its own. */
+    /* 48, the tag, 0x200 (NonPagedPoolNx), 4, 256; 0, 0, 0, 0, 0: a
+     * non-paged list with routines of its own. POOL_NX_ALLOCATION is
+     * asked for by name: the kit's headers add it to this call on ARM64
+     * whether asked or not, and the list's type must not depend on the
+     * architecture the driver was built for. */
     MARK(0x31);
     RtlFillMemory(&NkcNPaged, sizeof(NkcNPaged), 0xEE);
-    ExInitializeNPagedLookasideList(&NkcNPaged, NkcLookAllocate, NkcLookFree, 0, 48, NKC_LOOK_TAG,
-                                    0);
+    ExInitializeNPagedLookasideList(&NkcNPaged, NkcLookAllocate, NkcLookFree,
+                                    0x200 /* POOL_NX_ALLOCATION */, 48, NKC_LOOK_TAG, 0);
     NkcLookFields(Log, &NkcNPaged.L);
     NkcLookCounts(Log, &NkcNPaged.L);
 
@@ -515,8 +518,7 @@ static VOID NkcLookaside(NKC_LOG *Log)
     InterlockedExchange(&NkcAllocCalls, 0);
     InterlockedExchange(&NkcFreeCalls, 0);
 
-    /* 0x200: a non-paged list asked for with POOL_NX_ALLOCATION has
-     * that bit in its type. */
+    /* 0x200: so has a list with no routines of its own. */
     RtlFillMemory(&NkcNPaged, sizeof(NkcNPaged), 0xEE);
     ExInitializeNPagedLookasideList(&NkcNPaged, NULL, NULL, 0x200 /* POOL_NX_ALLOCATION */, 48,
                                     NKC_LOOK_TAG, 0);

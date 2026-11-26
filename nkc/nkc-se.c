@@ -534,9 +534,12 @@ static VOID NkcAccess(NKC_LOG *Log, NKC_ROOM *Room)
     PACCESS_TOKEN Primary;
     ULONG i;
 
-    /* 1, 1, 0: the subject of a system thread is its process's token,
-     * with no client token and so no level of impersonation.
+    /* 1, 1, 0x4E4B: the subject of a system thread is its process's
+     * token, with no client token; the level of impersonation, which
+     * means something only with a client token, is left as the caller
+     * had it.
      * 1, a guess: the process is named by its id. */
+    Subject.ImpersonationLevel = (SECURITY_IMPERSONATION_LEVEL)0x4E4B;
     SeCaptureSubjectContext(&Subject);
     Primary = PsReferencePrimaryToken(PsInitialSystemProcess);
     NkcPut(Log, Subject.PrimaryToken == Primary ? 1 : 0);

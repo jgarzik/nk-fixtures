@@ -620,7 +620,9 @@ static VOID NkcSilos(NKC_LOG *Log)
      * 0, 1, 1: made from NonPagedPoolNx and let go of, it is cleaned
      * up, once, and the callback is given the context.
      * 0, 1: the same from PagedPool. */
-    Status = NkcContext(NonPagedPool, &Context);
+    /* The pool type by its number: the kit's headers turn the name
+     * NonPagedPool into NonPagedPoolNx on ARM64. */
+    Status = NkcContext((POOL_TYPE)0, &Context);
     NkcPut(Log, (ULONG)Status);
     if (NT_SUCCESS(Status)) {
         PsDereferenceSiloContext(Context);
