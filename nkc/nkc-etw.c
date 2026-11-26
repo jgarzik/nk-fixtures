@@ -831,8 +831,16 @@ static VOID NkcRunList(ULONG List, NKC_LOG *Log)
      * imports the name is given. */
     NkcPut(Log, NkcLookup(L"EtwRegister") == (PVOID)(ULONG_PTR)EtwRegister ? 1 : 0);
 
-    /* 0xC0000008 (STATUS_INVALID_HANDLE): a trace message for a logger
-     * there is not. The arguments end with a null pointer. */
+    /* 0xC0000008 (STATUS_INVALID_HANDLE) twice: a trace message for a
+     * logger there is not. A logger's handle has the logger's number in
+     * its low word: number 0xFFFF is more than there can be, and number
+     * 0 is none that runs (a guess). The arguments end with a null
+     * pointer. */
+    NkcPut(Log, Message != NULL
+                    ? (ULONG)((NKC_WMI_TRACE_MESSAGE *)Message)(0xFFFF, NKC_TRACE_MESSAGE_GUID,
+                                                                &NkcClassicGuid, 1, (PVOID)NULL,
+                                                                (SIZE_T)0)
+                    : 0);
     NkcPut(Log, Message != NULL
                     ? (ULONG)((NKC_WMI_TRACE_MESSAGE *)Message)(0, NKC_TRACE_MESSAGE_GUID,
                                                                 &NkcClassicGuid, 1, (PVOID)NULL,
@@ -845,8 +853,7 @@ static VOID NkcRunList(ULONG List, NKC_LOG *Log)
     NkcRegistryValues(Log, (NKC_QUERY_REGISTRY_VALUES *)Registry);
 
     /* A registration handle of zero. 0xC0000008 three times: nothing
-     * is set for it, nothing unregistered, and, a guess, nothing
-     * written. */
+     * is set for it, nothing unregistered, nothing written. */
     NkcPut(Log, (ULONG)EtwSetInformation(0, EventProviderSetTraits, &Value, sizeof(Value)));
     NkcPut(Log, (ULONG)EtwUnregister(0));
     NkcPut(Log, (ULONG)EtwWriteTransfer(0, &Event, NULL, NULL, 0, NULL));
