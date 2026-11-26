@@ -898,8 +898,8 @@ static VOID NkcDescriptors(NKC_LOG *Log, NKC_ROOM *Room)
     ULONG Length, i;
     NTSTATUS Status;
 
-    /* The object: owner the system, group administrators, a list of two
-     * entries; 80 bytes. */
+    /* 0: the object: owner the system, group administrators, a list of
+     * two entries. */
     NkcAbsolute(&Room->Sd, Room->Acl, &NkcSystem, &NkcAdmins, NkcSupplied, 2, 0);
     SeCaptureSubjectContext(&Subject);
     Status = SeAssignSecurity(NULL, &Room->Sd, &Object, FALSE, &Subject, &NkcMapping, PagedPool);
