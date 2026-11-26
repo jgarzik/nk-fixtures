@@ -113,17 +113,18 @@ runner turns it into a real hive, `system.hiv`
 4. the hive is saved in the latest hive format (`RegSaveKeyExW`,
    `REG_LATEST_FORMAT`) and unloaded.
 
-So the content is NK's and the container is written by Microsoft's
-registry: its cells, lists, hashes, security records and checksum are
-what Windows produces. The content: `Select`; under `ControlSet001`,
-`Control\ServiceGroupOrder`, an empty `Control\Class`, `Services` keys
-for `Null`, `Npfs`, `msrpc`, `wmilib` and `wpprecorder`; and
-`Control\NkTest`, which exercises the format (every common value type,
-values of 0 to 5 bytes, values past 16344 bytes that need big-data
-cells, names that are and are not Latin-1, a key with a class, 1200
-subkeys of one key). The service values are written from memory of a
-stock Windows 10 installation, not confirmed against one; the manifest
-says so line by line.
+So the container is written by Microsoft's registry: its cells, lists,
+hashes, security records and checksum are what Windows produces. The
+content has two parts. What a kernel reads at boot is copied from an
+installation of Windows 10: `Select`; under `ControlSet001`,
+`Control\ServiceGroupOrder` and `Control\GroupOrderList` in full, an
+empty `Control\Class`, and the `Services` keys of `Null`, `Npfs`, `Msfs`
+and `msrpc` with the values Windows gives them (none has an
+`ImagePath`). `Control\NkTest` is NK's and exercises the format: every
+common value type, values of 0 to 5 bytes, values past 16344 bytes that
+need big-data cells, names that are and are not Latin-1, a key with a
+class, 1200 subkeys of one key. The manifest says for each key where it
+comes from and what of Windows' key it leaves out.
 
 `reg.exe` is not used: it cannot set a key's class, and a value larger
 than a command line cannot be passed to it.
