@@ -9,7 +9,12 @@
  * IoCompleteRequest between the two.
  *
  * The requests are nkc-cross's own (see nkc-cross.h). One from user
- * mode, or without the block that says where to log, is refused.
+ * mode is refused before the address it carries is looked at; one from
+ * kernel mode whose block does not begin with nkc-cross's magic value
+ * is refused before anything else in the block is used.
+ *
+ * A test fixture: for a kernel under test and the reference machine it
+ * is compared with. Never install it on a production system.
  *
  * NKC_IOCTL_RUN works as in every conformance driver and returns an
  * empty list: this driver logs into nkc-cross's.
@@ -70,13 +75,22 @@ static DECLSPEC_NOINLINE NTSTATUS NkcFinallyComplete(NKC_LOG *Log, PIRP Irp)
 static NTSTATUS NkcIrpControl(PIRP Irp, ULONG Code)
 {
     PIO_STACK_LOCATION Stack = IoGetCurrentIrpStackLocation(Irp);
-    NKC_CROSS *Cross = (NKC_CROSS *)Stack->Parameters.DeviceIoControl.Type3InputBuffer;
+    NKC_CROSS *Cross;
     NKC_LOG *Log;
 
-    /* The block is a kernel address: only the kernel's own request may
-     * name one. */
-    if (Irp->RequestorMode != KernelMode || Cross == NULL) {
+    /* The request carries a kernel address, as it is (METHOD_NEITHER).
+     * User mode may not name one: its request is refused here, with the
+     * address not yet read out of the stack location, let alone
+     * followed. Nothing above this line touches it. */
+    if (Irp->RequestorMode != KernelMode) {
         return NkcComplete(Irp, STATUS_ACCESS_DENIED, 0);
+    }
+    /* A kernel caller is trusted to pass an address it can read; that
+     * it is nkc-cross is told by the block's first field, which is
+     * checked before the block's pointer is used. */
+    Cross = (NKC_CROSS *)Stack->Parameters.DeviceIoControl.Type3InputBuffer;
+    if (Cross == NULL || Cross->Magic != NKC_CROSS_MAGIC || Cross->Log == NULL) {
+        return NkcComplete(Irp, STATUS_INVALID_PARAMETER, 0);
     }
     Log = Cross->Log;
 

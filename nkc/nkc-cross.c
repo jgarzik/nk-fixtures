@@ -32,8 +32,17 @@
  * exception, with 0xE04E4BC0 if the raise came to nothing; on Windows it
  * may do neither, and the oracle then records the bugcheck.
  *
+ * One request at a time: the DPC is one object, and a second request
+ * that arrives while one is being served is refused. NKC_CROSS_DPC
+ * completes with STATUS_DEVICE_BUSY then; the run request logs the mark
+ * 0xEA alone, a point that must not be reached when the oracle, which
+ * makes one request at a time, is the caller.
+ *
  * Of the undocumented routines in nkc-undoc.h this driver uses the one
  * the compiler calls: __C_specific_handler.
+ *
+ * A test fixture: for a kernel under test and the reference machine it
+ * is compared with. Never install it on a production system.
  */
 
 #define NKC_DEVICE L"\\Device\\NkcCross"
@@ -49,8 +58,24 @@
  * known never to return. */
 static volatile ULONG NkcZero;
 
-/* The DPC outlives the request that queues it. */
+/* The DPC outlives the request that queues it. It is initialised once,
+ * by the first request that needs it (NkcDpcReady), and only one request
+ * is served at a time (NkcBusy), so no two set it up or queue it at
+ * once. */
 static KDPC NkcDpc;
+static volatile LONG NkcDpcReady;
+static volatile LONG NkcBusy;
+
+/* Take the driver for one request; FALSE if another has it. */
+static BOOLEAN NkcEnter(VOID)
+{
+    return InterlockedCompareExchange(&NkcBusy, 1, 0) == 0;
+}
+
+static VOID NkcLeave(VOID)
+{
+    InterlockedExchange(&NkcBusy, 0);
+}
 
 static IO_COMPLETION_ROUTINE NkcDone;
 static IO_COMPLETION_ROUTINE NkcRaisingDone;
@@ -234,13 +259,20 @@ static VOID NkcRun(NKC_LOG *Log)
     NKC_CROSS Cross;
     NTSTATUS Status;
 
+    if (!NkcEnter()) {
+        MARK(0xEA);
+        return;
+    }
+
     /* 0: the other driver's device is there, and opens. */
     RtlInitUnicodeString(&Name, NKC_CROSS_DEVICE_B);
     Status = IoGetDeviceObjectPointer(&Name, FILE_READ_DATA, &File, &Target);
     NkcPut(Log, (ULONG)Status);
     if (!NT_SUCCESS(Status)) {
+        NkcLeave();
         return;
     }
+    Cross.Magic = NKC_CROSS_MAGIC;
     Cross.Log = Log;
 
     NkcQuiet(Log, Target, &Cross);
@@ -255,6 +287,7 @@ static VOID NkcRun(NKC_LOG *Log)
     NkcPut(Log, KeAreApcsDisabled() ? 1 : 0);
 
     ObDereferenceObject(File);
+    NkcLeave();
 }
 
 static VOID NkcDeferred(PKDPC Dpc, PVOID Context, PVOID Arg1, PVOID Arg2)
@@ -274,8 +307,10 @@ static DECLSPEC_NOINLINE NTSTATUS NkcDpcUnderTry(VOID)
     NTSTATUS Status;
     KIRQL Old;
 
-    __try {
+    if (InterlockedCompareExchange(&NkcDpcReady, 1, 0) == 0) {
         KeInitializeDpc(&NkcDpc, NkcDeferred, NULL);
+    }
+    __try {
         KeRaiseIrql(DISPATCH_LEVEL, &Old);
         KeInsertQueueDpc(&NkcDpc, NULL, NULL);
         KeLowerIrql(Old);
@@ -288,8 +323,15 @@ static DECLSPEC_NOINLINE NTSTATUS NkcDpcUnderTry(VOID)
 
 static NTSTATUS NkcControl(ULONG Code)
 {
+    NTSTATUS Status;
+
     if (Code != NKC_CROSS_DPC) {
         return STATUS_INVALID_DEVICE_REQUEST;
     }
-    return NkcDpcUnderTry();
+    if (!NkcEnter()) {
+        return STATUS_DEVICE_BUSY;
+    }
+    Status = NkcDpcUnderTry();
+    NkcLeave();
+    return Status;
 }

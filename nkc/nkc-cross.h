@@ -6,6 +6,11 @@
  * in its dispatch routine, and its Type3InputBuffer is the address of an
  * NKC_CROSS, through which nkc-cross-b logs into the list nkc-cross is
  * filling: both are kernel drivers, and the request is kernel mode's.
+ * The block begins with NKC_CROSS_MAGIC, by which nkc-cross-b knows a
+ * request of nkc-cross's from any other kernel caller's.
+ *
+ * A test fixture: for a kernel under test and the reference machine it
+ * is compared with. Never install it on a production system.
  *
  * This file is NK's, not Microsoft's.
  */
@@ -40,6 +45,10 @@
 #define NKC_MARK 0x5E000000u
 #define MARK(n) NkcPut(Log, NKC_MARK | (n))
 
+/* "NKCX": the first field of every block nkc-cross sends. */
+#define NKC_CROSS_MAGIC 0x58434B4Eu
+
 typedef struct _NKC_CROSS {
+    ULONG Magic;
     NKC_LOG *Log;
 } NKC_CROSS;
