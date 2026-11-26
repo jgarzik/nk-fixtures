@@ -79,6 +79,17 @@ NTKERNELAPI ULONG NTAPI PsGetThreadSessionId(PETHREAD Thread);
 NTKERNELAPI NTSTATUS NTAPI PsChargeProcessPagedPoolQuota(PEPROCESS Process, SIZE_T Amount);
 NTKERNELAPI VOID NTAPI PsReturnProcessPagedPoolQuota(PEPROCESS Process, SIZE_T Amount);
 
+/* imported by npfs.sys and msfs.sys; used by nkc-se. AuxData is room
+ * the caller gives for a structure the kit does not define
+ * (AUX_ACCESS_DATA, 0xE0 bytes on these builds); nkc-se gives more. */
+NTKERNELAPI NTSTATUS NTAPI SeCreateAccessState(PACCESS_STATE AccessState, PVOID AuxData,
+                                               ACCESS_MASK DesiredAccess,
+                                               PGENERIC_MAPPING GenericMapping);
+NTKERNELAPI VOID NTAPI SeDeleteAccessState(PACCESS_STATE AccessState);
+
+/* imported by msrpc.sys; used by nkc-se. */
+NTSYSAPI NTSTATUS NTAPI ZwImpersonateAnonymousToken(HANDLE ThreadHandle);
+
 /*
  * 3. Behind a macro.
  */
@@ -87,6 +98,13 @@ NTKERNELAPI VOID NTAPI PsReturnProcessPagedPoolQuota(PEPROCESS Process, SIZE_T A
  * PsGetCurrentProcess is IoGetCurrentProcess. */
 #undef PsGetCurrentProcess
 NTKERNELAPI PEPROCESS NTAPI PsGetCurrentProcess(VOID);
+
+/* imported by npfs.sys, msfs.sys; used by nkc-se. The kit's two are
+ * ObDereferenceObject. */
+#undef PsDereferencePrimaryToken
+#undef PsDereferenceImpersonationToken
+NTKERNELAPI VOID NTAPI PsDereferencePrimaryToken(PACCESS_TOKEN PrimaryToken);
+NTKERNELAPI VOID NTAPI PsDereferenceImpersonationToken(PACCESS_TOKEN ImpersonationToken);
 
 /*
  * 4. Looked up by name.

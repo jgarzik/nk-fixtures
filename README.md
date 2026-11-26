@@ -55,7 +55,7 @@ The fixture id is the driver's name: `nkc-irql` is `nkc-irql.sys`.
 | `nkc-waitn` | `NkcWaitN` | waiting on several objects at once |
 | `nkc-mutex` | `NkcMutex` | mutexes, fast mutexes and critical regions |
 | `nkc-work` | `NkcWork` | work items |
-| `nkc-se` | `NkcSe` | security descriptors |
+| `nkc-se` | `NkcSe` | security descriptors; on a system thread, as the System process's token: the access check case by case, privilege checks, the access state of an open, the descriptor of a new object (`SeAssignSecurity`), reading and changing a descriptor's parts; a second list (`0x222004`) for tokens: what the `Se` and `Zw` routines say of the System token, duplicates, and impersonation on a thread made for it |
 | `nkc-etw` | `NkcEtw` | trace providers with nobody listening: ETW registration and writes, WMI registration of a device and the `IRP_MJ_SYSTEM_CONTROL` requests it brings, a WMI event, bugcheck-reason callbacks, `ZwQuerySystemInformation`; a second list (`0x222004`) for the routines a WPP-traced driver looks up by name |
 | `nkc-ob` | `NkcOb` | objects: what the reference routines return, referencing through a handle (wrong type, no handle, more access than the handle has, a kernel handle for user mode); a second list (`0x222004`) for the kernel's store of security descriptors |
 | `nkc-ps` | `NkcPs` | the System process and its threads: ids, sessions, attaching to the current process, waits and alerts through handles, thread priority through a handle, quota; a second list (`0x222004`) for the host silo: slots, contexts and silo monitors on a system with no container |
