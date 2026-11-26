@@ -118,6 +118,19 @@ NTKERNELAPI VOID NTAPI SeDeleteAccessState(PACCESS_STATE AccessState);
 /* imported by msrpc.sys; used by nkc-se. */
 NTSYSAPI NTSTATUS NTAPI ZwImpersonateAnonymousToken(HANDLE ThreadHandle);
 
+/* imported by npfs.sys, and looked up by name by wpprecorder.sys; used
+ * by nkc-reg. RtlQueryRegistryValues with a check of each value's type
+ * for the entries that ask for one. */
+NTSYSAPI NTSTATUS NTAPI RtlQueryRegistryValuesEx(ULONG RelativeTo, PCWSTR Path,
+                                                 PRTL_QUERY_REGISTRY_TABLE QueryTable,
+                                                 PVOID Context, PVOID Environment);
+
+/* imported by npfs.sys; used by nkc-rtl. What kind of app-container SID
+ * a SID is (the type is a number: the kit does not define it), and the
+ * parent of a child's. The parent is allocated: ExFreePool frees it. */
+NTSYSAPI NTSTATUS NTAPI RtlGetAppContainerSidType(PSID AppContainerSid, PULONG AppContainerSidType);
+NTSYSAPI NTSTATUS NTAPI RtlGetAppContainerParent(PSID AppContainerSid, PSID *AppContainerSidParent);
+
 /* imported by msrpc.sys; used by nkc-ps. Alerts a thread: its alertable
  * wait ends with STATUS_ALERTED. */
 NTSYSAPI NTSTATUS NTAPI ZwAlertThread(HANDLE ThreadHandle);

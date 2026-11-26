@@ -36,8 +36,8 @@
  * So that the compiler cannot answer for the kernel, the C run-time
  * routines are called through pointers it must read from memory.
  *
- * No routine from nkc-undoc.h is used: all of these are declared by the
- * kit's headers.
+ * Of nkc-undoc.h it uses RtlGetAppContainerSidType and
+ * RtlGetAppContainerParent; the rest are declared by the kit's headers.
  */
 
 /* The routines for file systems are declared by <ntifs.h>, which must
@@ -53,6 +53,7 @@
 #define NKC_DEVICE L"\\Device\\NkcRtl"
 #define NKC_IRP_CONTROL
 #include "nkc.h"
+#include "nkc-undoc.h"
 
 #define NKC_MARK 0x57000000u
 #define MARK(n) NkcPut(Log, NKC_MARK | (n))
@@ -675,7 +676,7 @@ static VOID NkcAppContainer(NKC_LOG *Log, PSID Sid)
     NKC_SID Expected;
     NTSTATUS Status;
 
-    NkcPut(Log, (ULONG)RtlGetAppContainerSidType(Sid, (PVOID)&Type));
+    NkcPut(Log, (ULONG)RtlGetAppContainerSidType(Sid, &Type));
     NkcPut(Log, Type);
     Status = RtlGetAppContainerParent(Sid, &Parent);
     NkcPut(Log, (ULONG)Status);

@@ -17,11 +17,12 @@
  * out. The buffer a query writes to is filled with 0xEE first, so a
  * byte the kernel did not write shows as 0xEE.
  *
- * No routine from nkc-undoc.h is used.
+ * Of nkc-undoc.h it uses RtlQueryRegistryValuesEx.
  */
 
 #define NKC_DEVICE L"\\Device\\NkcReg"
 #include "nkc.h"
+#include "nkc-undoc.h"
 
 #define NKC_KEY L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\nkc-reg\\NkcTest"
 
