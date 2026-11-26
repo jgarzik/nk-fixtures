@@ -199,8 +199,12 @@ python3 -m unittest discover -s tests
 
 ## Status and limits
 
-These binaries have not yet been run on a reference Windows 10 installation.
-Until that baseline exists they are "WDK-built", not "Windows-verified".
+The build proves only that a driver compiles and links. What a driver
+does on Windows is recorded elsewhere: NK runs each one on a reference
+Windows 10 installation and keeps the transcript
+([nk](https://github.com/jgarzik/nk), `oracle/`). A prediction written
+beside a fact in a driver's source is a prediction; the transcript is
+what Windows answered.
 
 ## License
 
