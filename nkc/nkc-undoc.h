@@ -25,7 +25,8 @@
  *
  *    __C_specific_handler   imported by npfs.sys, msfs.sys, msrpc.sys
  *                           the language handler of every function with
- *                           a __try; used by nkc-seh, nkc-seh-fatal
+ *                           a __try; used by nkc-seh, nkc-seh-fatal,
+ *                           nkc-cross, nkc-cross-b
  *    _local_unwind          imported by cng.sys, ntfs.sys, fastfat.sys
  *                           runs the __finally blocks a goto or a return
  *                           leaves a __try through; used by nkc-seh

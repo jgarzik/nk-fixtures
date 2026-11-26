@@ -1,0 +1,109 @@
+/*
+ * Conformance: the far side of an exception that crosses the kernel.
+ *
+ * This driver does what nkc-cross asks of it, in its dispatch routine:
+ * complete a request, or raise an exception that nothing in this driver
+ * handles. What is being observed is in nkc-cross.c: whether, and in
+ * what order, a __try in the driver that sent the request sees an
+ * exception raised here, with the kernel's IoCallDriver and
+ * IoCompleteRequest between the two.
+ *
+ * The requests are nkc-cross's own (see nkc-cross.h). One from user
+ * mode, or without the block that says where to log, is refused.
+ *
+ * NKC_IOCTL_RUN works as in every conformance driver and returns an
+ * empty list: this driver logs into nkc-cross's.
+ *
+ * Of the undocumented routines in nkc-undoc.h this driver uses the one
+ * the compiler calls: __C_specific_handler.
+ */
+
+#define NKC_DEVICE L"\\Device\\NkcCrossB"
+#define NKC_IRP_CONTROL
+#include "nkc.h"
+#include "nkc-cross.h"
+
+/* Always zero, and the compiler cannot know it: the raises below are not
+ * known never to return. */
+static volatile ULONG NkcZero;
+
+static DECLSPEC_NOINLINE VOID NkcRaise(NTSTATUS Status)
+{
+    if (NkcZero == 0) {
+        ExRaiseStatus(Status);
+    }
+}
+
+/* B2, then the raise; B3 and 1 when the unwind passes: this __finally
+ * runs as an abnormal termination. */
+static DECLSPEC_NOINLINE NTSTATUS NkcFinallyRaise(NKC_LOG *Log, PIRP Irp)
+{
+    __try {
+        MARK(0xB2);
+        NkcRaise(NKC_STATUS(0x32));
+        MARK(0xE8);
+    } __finally {
+        MARK(0xB3);
+        NkcPut(Log, AbnormalTermination() ? 1 : 0);
+    }
+    return NkcComplete(Irp, NKC_SURVIVED, 0);
+}
+
+/* B4, then IoCompleteRequest, which calls the sender's completion
+ * routine; that routine raises, so B5 is not reached, and B6 and 1 are
+ * logged when the unwind passes. */
+static DECLSPEC_NOINLINE NTSTATUS NkcFinallyComplete(NKC_LOG *Log, PIRP Irp)
+{
+    NTSTATUS Status = STATUS_UNSUCCESSFUL;
+
+    __try {
+        MARK(0xB4);
+        Status = NkcComplete(Irp, STATUS_SUCCESS, 0);
+        MARK(0xB5);
+    } __finally {
+        MARK(0xB6);
+        NkcPut(Log, AbnormalTermination() ? 1 : 0);
+    }
+    return Status;
+}
+
+static NTSTATUS NkcIrpControl(PIRP Irp, ULONG Code)
+{
+    PIO_STACK_LOCATION Stack = IoGetCurrentIrpStackLocation(Irp);
+    NKC_CROSS *Cross = (NKC_CROSS *)Stack->Parameters.DeviceIoControl.Type3InputBuffer;
+    NKC_LOG *Log;
+
+    /* The block is a kernel address: only the kernel's own request may
+     * name one. */
+    if (Irp->RequestorMode != KernelMode || Cross == NULL) {
+        return NkcComplete(Irp, STATUS_ACCESS_DENIED, 0);
+    }
+    Log = Cross->Log;
+
+    switch (Code) {
+    case NKC_CROSS_QUIET:
+        MARK(0xB0);
+        return NkcComplete(Irp, STATUS_SUCCESS, 0);
+
+    case NKC_CROSS_RAISE:
+        MARK(0xB1);
+        NkcRaise(NKC_STATUS(0x31));
+        MARK(0xE9);
+        return NkcComplete(Irp, NKC_SURVIVED, 0);
+
+    case NKC_CROSS_FINALLY:
+        return NkcFinallyRaise(Log, Irp);
+
+    case NKC_CROSS_COMPLETE:
+        return NkcFinallyComplete(Log, Irp);
+
+    default:
+        return NkcComplete(Irp, STATUS_INVALID_DEVICE_REQUEST, 0);
+    }
+}
+
+/* Nothing to log. */
+static VOID NkcRun(NKC_LOG *Log)
+{
+    UNREFERENCED_PARAMETER(Log);
+}
