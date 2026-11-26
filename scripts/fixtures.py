@@ -91,7 +91,7 @@ def find_vs():
     die("no Visual Studio installation with the WDK component found")
 
 
-def devshell(vs_path, argv, out, capture_output=False):
+def devshell(vs_path, argv, out, capture_output=False, check=True):
     """Run argv inside the VS Developer Shell, as upstream's BuildEnvironment.ps1 does.
 
     msbuild alone is not enough: WDK tools such as stampinf.exe are only found
@@ -116,9 +116,9 @@ def devshell(vs_path, argv, out, capture_output=False):
                            capture_output=capture_output, text=True)
     finally:
         argfile.unlink(missing_ok=True)
-    if r.returncode:
+    if r.returncode and check:
         die(f"{argv[0]} exited with status {r.returncode}")
-    return r.stdout
+    return r.stdout if check else r.returncode
 
 
 def nuget_packages(wds):
@@ -180,12 +180,18 @@ def cmd_build(args):
                 shutil.rmtree(dest)
             shutil.copytree(ROOT / fx["local"], dest)
 
+    # Every solution is built even after one fails, so that one run shows
+    # every error there is.
+    failed = []
     for sln in sorted({f["solution"] for f in cfg["fixtures"]}):
         log = logs / (Path(sln).stem + f".{args.arch}.binlog")
-        devshell(vs_path, ["msbuild", wds / sln, "-t:Rebuild", "-m", "-noLogo",
-                           "-clp:Verbosity=m",
-                           f"-binaryLogger:LogFile={log};ProjectImports=None"]
-                 + [f"-p:{k}={v}" for k, v in props.items()], out)
+        if devshell(vs_path, ["msbuild", wds / sln, "-t:Rebuild", "-m", "-noLogo",
+                              "-clp:Verbosity=m",
+                              f"-binaryLogger:LogFile={log};ProjectImports=None"]
+                    + [f"-p:{k}={v}" for k, v in props.items()], out, check=False):
+            failed.append(sln)
+    if failed:
+        die("msbuild failed for: " + ", ".join(failed))
 
     msbuild_ver = devshell(vs_path, ["msbuild", "-version", "-noLogo"], out,
                            capture_output=True).strip().split("\n")[-1]
