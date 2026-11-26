@@ -119,6 +119,30 @@
       "optional": ["nkc-se.pdb"]
     },
     {
+      "id": "nkc-etw",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-etw.vcxproj",
+      "required": ["nkc-etw.sys"],
+      "optional": ["nkc-etw.pdb"]
+    },
+    {
+      "id": "nkc-ob",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-ob.vcxproj",
+      "required": ["nkc-ob.sys"],
+      "optional": ["nkc-ob.pdb"]
+    },
+    {
+      "id": "nkc-ps",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-ps.vcxproj",
+      "required": ["nkc-ps.sys"],
+      "optional": ["nkc-ps.pdb"]
+    },
+    {
       "id": "nkc-reg",
       "framework": "WDM",
       "local": "nkc",
