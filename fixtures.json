@@ -127,6 +127,22 @@
       "optional": ["nkc-reg.pdb"]
     },
     {
+      "id": "nkc-ex",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-ex.vcxproj",
+      "required": ["nkc-ex.sys"],
+      "optional": ["nkc-ex.pdb"]
+    },
+    {
+      "id": "nkc-rtl",
+      "framework": "WDM",
+      "local": "nkc",
+      "solution": "_nk/nkc/nkc-rtl.vcxproj",
+      "required": ["nkc-rtl.sys"],
+      "optional": ["nkc-rtl.pdb"]
+    },
+    {
       "id": "nkc-seh",
       "framework": "WDM",
       "local": "nkc",

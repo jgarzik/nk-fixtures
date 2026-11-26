@@ -2,7 +2,7 @@
 #
 # The build has Windows itself create these keys and values in an empty
 # hive and save it (scripts/hive.py), so the file is a real hive, written
-# by Microsoft's registry, of content that is all NK's.
+# by Microsoft's registry, of exactly the content listed here.
 #
 # Format. One line per key and one per value; blank lines and lines that
 # start with '#' are ignored. The file is ASCII.
@@ -40,70 +40,124 @@
 
 # --- What a kernel reads at boot ---------------------------------------------
 #
-# Where each value comes from is stated. "Inferred" means written from
-# memory of what a stock Windows 10 installation holds, not checked
-# against one or against documentation; the reference VM of the kernel
-# repository can confirm or correct it.
+# These keys and values are what an installation of Windows 10 (x64,
+# 10.0.19045.2006) has: read from one with reg.exe, sc.exe and
+# PowerShell, and copied here as found, names in the letter case found.
+# Of each key only what is listed was read; where a key of Windows holds
+# more than is here, a comment says so.
 
-# Which control set is current. Documented: the three numbers name
-# ControlSet00N. (Windows also keeps a value Failed.)
+# Which control set is current: the numbers name ControlSet00N.
 key Select
 value Current dword 1
 value Default dword 1
+value Failed dword 0
 value LastKnownGood dword 1
 
-# The order in which groups of drivers start. The names and their order
-# relative to each other are Windows' (inferred); Windows' list is longer.
-# The last two are the groups the services below belong to.
+# The order in which groups of drivers start: all 70 entries, in
+# Windows' order.
 key ControlSet001\Control\ServiceGroupOrder
-value List multi_sz "System Reserved" "Boot Bus Extender" "System Bus Extender" "Boot File System" Base "File System"
+value List multi_sz "System Reserved" EMS WdfLoadGroup "Boot Bus Extender" "System Bus Extender" "SCSI miniport" Port "Primary Disk" "SCSI Class" "SCSI CDROM Class" "FSFilter Infrastructure" "FSFilter System" "FSFilter Bottom" "FSFilter Copy Protection" "FSFilter Security Enhancer" "FSFilter Open File" "FSFilter Physical Quota Management" "FSFilter Virtualization" "FSFilter Encryption" "FSFilter Compression" "FSFilter Imaging" "FSFilter HSM" "FSFilter Cluster File System" "FSFilter System Recovery" "FSFilter Quota Management" "FSFilter Content Screener" "FSFilter Continuous Backup" "FSFilter Replication" "FSFilter Anti-Virus" "FSFilter Undelete" "FSFilter Activity Monitor" "FSFilter Top" Filter "Boot File System" Base "Pointer Port" "Keyboard Port" "Pointer Class" "Keyboard Class" "Video Init" Video "Video Save" "File System" "Streams Drivers" "NDIS Wrapper" "COM Infrastructure" "Event Log" PerceptionGroup ProfSvc_Group AudioGroup UIGroup MS_WindowsLocalValidation PlugPlay Cryptography PNP_TDI NDIS TDI iSCSI NetBIOSGroup ShellSvcGroup SchedulerGroup SpoolerGroup SmartCardGroup NetworkProvider MS_WindowsRemoteValidation NetDDEGroup "Parallel arbitrator" "Extended Base" "PCI Configuration" "MS Transactions"
 
-# Device setup classes: present, and empty.
+# The order of drivers within a group: per group a count, then that many
+# tags (the Tag values of services), 32 bits each. The values are in the
+# order Windows enumerates them. A group that is not here has no order.
+key ControlSet001\Control\GroupOrderList
+value "Extended Base" binary hex:0a0000000100000002000000040000000300000005000000060000000700000008000000090000000a000000
+value NDIS binary hex:0c0000000100000002000000030000000400000005000000060000000700000008000000090000000a0000000b0000000c000000
+value Base binary hex:100000000e0000000100000002000000030000000400000005000000060000000700000008000000090000000a0000000b0000000c0000000d0000000f00000010000000
+value "System Bus Extender" binary hex:0e000000070000000300000004000000010000000f00000008000000090000000a0000000b0000000c0000000d0000000e0000000200000005000000
+value "Boot Bus Extender" binary hex:06000000070000000100000002000000030000000400000005000000
+value "SCSI Class" binary hex:03000000010000000200000003000000
+value "Core Security Extensions" binary hex:020000000100000002000000
+value "SCSI CDROM Class" binary hex:020000000100000002000000
+value "SCSI miniport" binary hex:3f0000000001000001010000190000000100000002000000030000000400000005000000060000000700000008000000090000000a0000000b0000000c0000000d0000000e0000000f00000010000000110000001200000013000000140000001500000016000000170000001a000000180000001b0000001c0000001d0000001e0000001f00000020000000230000002400000025000000260000002700000028000000290000002a0000002b0000002c0000002d0000002e0000002f000000300000003100000032000000330000003400000035000000360000003700000038000000390000003a0000003b0000003c0000003d0000003e0000003f000000
+value "PnP Filter" binary hex:03000000010000000300000004000000
+value "Parallel arbitrator" binary hex:0100000001000000
+value "Primary Disk" binary hex:050000000100000002000000030000000400000005000000
+value Video binary hex:0100000001000000
+value "Pointer Port" binary hex:03000000010000000200000003000000
+value "Keyboard Port" binary hex:0400000001000000020000000300000004000000
+value PNP_TDI binary hex:0700000005000000010000000200000003000000040000000600000007000000
+value "Video Init" binary hex:0100000001000000
+value Cryptography binary hex:020000000100000002000000
+value EMS binary hex:0100000001000000
+value Filter binary hex:0100000001000000
+value "FSFilter Activity Monitor" binary hex:0100000001000000
+value "FSFilter Anti-Virus" binary hex:0100000001000000
+value "FSFilter Bottom" binary hex:0100000001000000
+value "FSFilter Cluster File System" binary hex:0100000001000000
+value "FSFilter Compression" binary hex:0100000001000000
+value "FSFilter Content Screener" binary hex:0100000001000000
+value "FSFilter Continuous Backup" binary hex:0100000001000000
+value "FSFilter Copy Protection" binary hex:0100000001000000
+value "FSFilter Encryption" binary hex:0100000001000000
+value "FSFilter HSM" binary hex:0100000001000000
+value "FSFilter Imaging" binary hex:0100000001000000
+value "FSFilter Infrastructure" binary hex:0100000001000000
+value "FSFilter Open File" binary hex:0100000001000000
+value "FSFilter Physical Quota Management" binary hex:0100000001000000
+value "FSFilter Quota Management" binary hex:0100000001000000
+value "FSFilter Replication" binary hex:0100000001000000
+value "FSFilter Security Enhancer" binary hex:0100000001000000
+value "FSFilter System" binary hex:0100000001000000
+value "FSFilter System Recovery" binary hex:0100000001000000
+value "FSFilter Top" binary hex:0100000001000000
+value "FSFilter Undelete" binary hex:0100000001000000
+value "FSFilter Virtualization" binary hex:0100000001000000
+value "Keyboard Class" binary hex:0100000001000000
+value NetBIOSGroup binary hex:0100000001000000
+value Network binary hex:06000000010000000200000003000000040000000500000006000000
+value "Pointer Class" binary hex:0100000001000000
+value SpoolerGroup binary hex:020000000100000002000000
+value "Streams Drivers" binary hex:0100000001000000
+value "Video Save" binary hex:0100000001000000
+
+# Device setup classes: present, and empty here. (Windows' key has a
+# subkey for every class.)
 key ControlSet001\Control\Class
 
 # Services. Type 1 is a kernel driver, 2 a file system driver. Start 1 is
 # started by the kernel during initialisation, 3 on demand. ErrorControl 1
-# logs a failure and carries on. The meaning of the numbers is documented
-# (the CreateService function); the particular values are inferred.
+# logs a failure and carries on. Tag places a driver in its group's line
+# of GroupOrderList. None of these keys has an ImagePath: the image is
+# then System32\drivers\<key name>.sys. None has DependOnService.
+#
+# The letter case is Windows': the group of Npfs and Msfs is spelled
+# "File system", the entry of ServiceGroupOrder "File System".
 
-# Inferred: all five values.
 key ControlSet001\Services\Null
-value Type dword 1
-value Start dword 1
 value ErrorControl dword 1
 value Group sz Base
-value ImagePath expand_sz \SystemRoot\System32\Drivers\Null.SYS
-
-# Inferred: all five values. (Windows also has the subkey Aliases.)
-key ControlSet001\Services\Npfs
-value Type dword 2
 value Start dword 1
-value ErrorControl dword 1
-value Group sz "File System"
-value ImagePath expand_sz \SystemRoot\System32\Drivers\Npfs.SYS
+value Tag dword 1
+value Type dword 1
 
-# Inferred: all four values, Start least certainly; no Group.
+key ControlSet001\Services\Npfs
+value ErrorControl dword 1
+value Group sz "File system"
+value Start dword 1
+value Type dword 2
+
+# Windows has this subkey; what it holds was not read, so it is empty
+# here.
+key ControlSet001\Services\Npfs\Aliases
+
+key ControlSet001\Services\Msfs
+value ErrorControl dword 1
+value Group sz "File system"
+value Start dword 1
+value Type dword 2
+
+# No Group. (On the installation read, this service was stopped and had
+# never been started, and msrpc.sys was among the loaded modules.)
 key ControlSet001\Services\msrpc
-value Type dword 1
-value Start dword 3
 value ErrorControl dword 1
-value ImagePath expand_sz System32\drivers\msrpc.sys
+value Start dword 3
+value Tag dword 1
+value Type dword 1
 
-# wmilib and wpprecorder are libraries other drivers import from. Whether
-# a stock installation has a Services key for either is not known here:
-# these two keys are NK's, written so that every driver a test loads has
-# a key, with the values of an on-demand kernel driver.
-key ControlSet001\Services\wmilib
-value Type dword 1
-value Start dword 3
-value ErrorControl dword 1
-value ImagePath expand_sz System32\drivers\wmilib.sys
-
-key ControlSet001\Services\wpprecorder
-value Type dword 1
-value Start dword 3
-value ErrorControl dword 1
-value ImagePath expand_sz System32\drivers\WppRecorder.sys
+# wmilib.sys and WppRecorder.sys are libraries other drivers import
+# from. Windows has no Services key for either, so neither has one here.
 
 # --- A subtree that exercises the hive format ---------------------------------
 #
