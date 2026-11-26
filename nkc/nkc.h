@@ -22,6 +22,13 @@
  * other device-control request itself: to complete, or not, and to
  * return the dispatch routine's status for.
  *
+ * A driver that defines NKC_SETUP also provides NkcSetup and NkcTeardown.
+ * DriverEntry calls NkcSetup once the device exists and the dispatch
+ * routines above are in place, so it may add entries of its own to the
+ * driver's MajorFunction table; if it fails, the device is deleted and
+ * DriverEntry fails with its status. The unload routine calls
+ * NkcTeardown first, while the device still exists.
+ *
  * Rules for NkcRun, so that the list is the same on every machine, on
  * both architectures and with any number of processors:
  *   - log facts (an IRQL, a return value, a count), never addresses,
@@ -60,6 +67,10 @@ static NTSTATUS NkcControl(ULONG Code);
 #endif
 #ifdef NKC_IRP_CONTROL
 static NTSTATUS NkcIrpControl(PIRP Irp, ULONG Code);
+#endif
+#ifdef NKC_SETUP
+static NTSTATUS NkcSetup(PDRIVER_OBJECT Driver, PDEVICE_OBJECT Device);
+static VOID NkcTeardown(PDRIVER_OBJECT Driver, PDEVICE_OBJECT Device);
 #endif
 
 /* The driver's one device, for the routines that want a device object. */
@@ -164,6 +175,9 @@ static NTSTATUS NkcDeviceControl(PDEVICE_OBJECT Device, PIRP Irp)
 
 static VOID NkcUnload(PDRIVER_OBJECT Driver)
 {
+#ifdef NKC_SETUP
+    NkcTeardown(Driver, NkcDeviceObject);
+#endif
     IoDeleteDevice(Driver->DeviceObject);
 }
 
@@ -184,5 +198,13 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT Driver, PUNICODE_STRING RegistryPath)
     Driver->MajorFunction[IRP_MJ_CLOSE] = NkcCreateClose;
     Driver->MajorFunction[IRP_MJ_DEVICE_CONTROL] = NkcDeviceControl;
     Driver->DriverUnload = NkcUnload;
+#ifdef NKC_SETUP
+    Status = NkcSetup(Driver, Device);
+    if (!NT_SUCCESS(Status)) {
+        NkcDeviceObject = NULL;
+        IoDeleteDevice(Device);
+        return Status;
+    }
+#endif
     return STATUS_SUCCESS;
 }
