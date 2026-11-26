@@ -118,6 +118,10 @@ NTKERNELAPI VOID NTAPI SeDeleteAccessState(PACCESS_STATE AccessState);
 /* imported by msrpc.sys; used by nkc-se. */
 NTSYSAPI NTSTATUS NTAPI ZwImpersonateAnonymousToken(HANDLE ThreadHandle);
 
+/* imported by msrpc.sys; used by nkc-ps. Alerts a thread: its alertable
+ * wait ends with STATUS_ALERTED. */
+NTSYSAPI NTSTATUS NTAPI ZwAlertThread(HANDLE ThreadHandle);
+
 /*
  * 3. Behind a macro.
  */
