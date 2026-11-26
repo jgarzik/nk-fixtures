@@ -27,7 +27,7 @@
  * initialised and its list routines.
  */
 
-/* ExTryToAcquireResourceExclusiveLite is declared for file systems. The
+/* The resource routines for file systems are declared in ntifs.h. The
  * pool routines here are the ones Microsoft's drivers of this Windows
  * import; a newer kit's advice to use others is not wanted. */
 #include <ntifs.h>
@@ -619,7 +619,7 @@ static VOID NkcResources(NKC_LOG *Log)
     NkcHeld(Log);
     NkcPut(Log, NkcBool(ExAcquireResourceExclusiveLite(&NkcResource, FALSE)));
     NkcHeld(Log);
-    NkcPut(Log, NkcBool(ExTryToAcquireResourceExclusiveLite(&NkcResource)));
+    NkcPut(Log, NkcBool(ExAcquireResourceExclusiveLite(&NkcResource, FALSE)));
     NkcHeld(Log);
 
     /* 1, 4, 0x80; 1, 3, 0x80; 1, 2, 0x80; 1, 1, 0x80; 0, 0, 0: released
@@ -640,7 +640,7 @@ static VOID NkcResources(NKC_LOG *Log)
     NkcPut(Log, NkcBool(ExAcquireResourceSharedLite(&NkcResource, FALSE)));
     NkcHeld(Log);
     NkcPut(Log, NkcBool(ExAcquireResourceExclusiveLite(&NkcResource, FALSE)));
-    NkcPut(Log, NkcBool(ExTryToAcquireResourceExclusiveLite(&NkcResource)));
+    NkcPut(Log, NkcBool(ExAcquireResourceExclusiveLite(&NkcResource, FALSE)));
     NkcPut(Log, NkcBool(ExAcquireSharedStarveExclusive(&NkcResource, TRUE)));
     NkcHeld(Log);
     NkcPut(Log, NkcBool(ExAcquireSharedWaitForExclusive(&NkcResource, TRUE)));
